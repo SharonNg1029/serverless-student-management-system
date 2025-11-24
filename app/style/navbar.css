@@ -1,18 +1,22 @@
 /* Updated navbar with modern design: dark blue background (#293548), white text, and orange hover (#e38214) */
 .navbar {
   background-color: #293548;
-  padding: 1rem 0;
+  padding: 0.75rem 0;
   border-bottom: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .navbar-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 2rem;
 }
 
 .navbar-logo {
@@ -20,26 +24,32 @@
   font-weight: bold;
   color: #ffffff;
   text-decoration: none;
-  transition: color 0.3s;
+  transition: opacity 0.3s;
+  flex-shrink: 0;
 }
 
 .navbar-logo:hover {
-  color: #e38214;
+  opacity: 0.8;
 }
 
 .navbar-menu {
   display: flex;
-  gap: 2rem;
+  gap: 0.5rem;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
 }
 
 .navbar-item {
   color: #ffffff;
   text-decoration: none;
-  font-size: 1rem;
+  font-size: 0.95rem;
   transition: all 0.3s ease;
   padding: 0.5rem 1rem;
   border-radius: 6px;
   position: relative;
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 .navbar-item:hover {
@@ -53,13 +63,42 @@
   font-weight: 600;
 }
 
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Ensure menu doesn't affect navbar height */
+.navbar-actions > div {
+  position: static;
+}
+
 @media (max-width: 768px) {
-  .navbar-menu {
+  .navbar-container {
+    padding: 0 1rem;
     gap: 1rem;
   }
 
+  .navbar-menu {
+    gap: 0.25rem;
+  }
+
   .navbar-item {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.9rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .navbar-actions {
+    gap: 0.5rem;
   }
 }
+
+@media (max-width: 480px) {
+  .navbar-menu {
+    display: none;
+  }
+}
+
