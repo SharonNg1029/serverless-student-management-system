@@ -1,6 +1,9 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router'
-import Navbar from './components/navbar'
-import Footer from './components/footer'
+import { useEffect } from 'react'
+import Navbar from './components/layout/navbar'
+import Footer from './components/layout/footer'
+import { configureAmplify } from './config/amplify-config'
+import { useAuthStore } from './store/authStore'
 import './style/layout.css'
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -11,7 +14,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
-        <script src="https://accounts.google.com/gsi/client" async defer></script>
       </head>
       <body>
         <div className="layout">
@@ -31,5 +33,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function Root() {
+  const { checkAuthStatus } = useAuthStore()
+
+  useEffect(() => {
+    // Initialize Amplify configuration
+    configureAmplify()
+    
+    // Check authentication status on app load
+    checkAuthStatus()
+  }, [])
+
   return <Outlet />
 }

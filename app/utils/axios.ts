@@ -1,7 +1,8 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosResponse, AxiosError } from 'axios';
+import { fetchAuthSession } from '@aws-amplify/auth';
 
-// Cấu hình base URL - thay đổi theo môi trường của bạn
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+// Cấu hình base URL - URL của API Gateway
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://your-api-gateway-url.execute-api.ap-southeast-1.amazonaws.com/prod';
 
 // Tạo axios instance
 const api: AxiosInstance = axios.create({
@@ -12,17 +13,43 @@ const api: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor - thêm token vào mỗi request
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    // Lấy token từ localStorage
-    const token = localStorage.getItem('token');
-    
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Flag để tránh multiple refresh requests
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value?: any) => void;
+  reject: (reason?: any) => void;
+}> = [];
+
+const processQueue = (error: any = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve();
     }
-    
-    return config;
+  });
+  
+  failedQueue = [];
+};
+
+// Request interceptor - thêm AccessToken vào mỗi request
+api.interceptors.request.use(
+  async (config: InternalAxiosRequestConfig) => {
+    try {
+      // Lấy token từ Cognito session
+      const session = await fetchAuthSession();
+      const accessToken = session.tokens?.accessToken?.toString();
+      
+      if (accessToken && config.headers) {
+        // Thêm AccessToken vào Authorization header cho API Gateway
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+      
+      return config;
+    } catch (error) {
+      console.error('Error getting access token:', error);
+      return config;
+    }
   },
   (error: AxiosError) => {
     return Promise.reject(error);
@@ -34,18 +61,63 @@ api.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;
   },
-  (error: AxiosError) => {
-    // Xử lý lỗi 401 - Unauthorized
-    if (error.response?.status === 401) {
-      // Xóa token và redirect về login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    
+    // Xử lý lỗi 401 - Unauthorized (token expired)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Nếu đang refresh, đưa request vào queue
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => {
+            return api(originalRequest);
+          })
+          .catch(err => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // Refresh token thông qua Cognito
+        const session = await fetchAuthSession({ forceRefresh: true });
+        const newAccessToken = session.tokens?.accessToken?.toString();
+        
+        if (newAccessToken && originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        }
+        
+        processQueue(null);
+        isRefreshing = false;
+        
+        // Retry request với token mới
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError);
+        isRefreshing = false;
+        
+        // Không thể refresh token, redirect về login
+        console.error('Token refresh failed, redirecting to login');
+        
+        // Clear auth state
+        localStorage.removeItem('auth-storage');
+        
+        // Redirect to login
+        if (typeof window !== 'undefined') {
+          window.location.href = '/auth/login';
+        }
+        
+        return Promise.reject(refreshError);
+      }
     }
 
     // Xử lý lỗi 403 - Forbidden
     if (error.response?.status === 403) {
-      console.error('Access denied');
+      console.error('Access denied - insufficient permissions');
     }
 
     // Xử lý lỗi 500 - Server Error
