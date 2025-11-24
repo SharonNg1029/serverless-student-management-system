@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router'
 import { useState } from 'react'
+import { MessageCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import ChatSidebar from '../chat/ChatSidebar'
 import NotificationBell from '../notifications/NotificationBell'
+import UserMenu from './UserMenu'
 import '../../style/navbar.css'
 
 export default function Navbar() {
@@ -75,23 +77,44 @@ export default function Navbar() {
             ))}
           </div>
 
-          <div className="navbar-actions">
+          <div className="navbar-actions" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem'
+          }}>
             {/* Chat icon */}
             <button 
-              className="navbar-icon-btn"
               onClick={() => setIsChatOpen(!isChatOpen)}
               title="Chat"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0.5rem',
+                borderRadius: '6px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(227, 130, 20, 0.1)';
+                e.currentTarget.style.color = '#e38214';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#fff';
+              }}
             >
-              💬
+              <MessageCircle size={20} />
             </button>
 
             {/* Notification bell */}
             <NotificationBell />
 
-            {/* Profile link */}
-            <Link to="/profile" className="navbar-profile">
-              {user?.fullName || user?.username}
-            </Link>
+            {/* User Menu with Avatar and Dropdown */}
+            <UserMenu />
           </div>
         </div>
       </nav>
