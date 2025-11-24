@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { signIn, signOut, fetchAuthSession, getCurrentUser, fetchUserAttributes } from '@aws-amplify/auth';
+import { signIn, signOut, fetchAuthSession, getCurrentUser, fetchUserAttributes, confirmSignIn, type ConfirmSignInOutput } from '@aws-amplify/auth';
 import type { User } from '../types/user';
 
 interface AuthState {
@@ -11,9 +11,11 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  pendingSignIn: boolean;
   
   // Actions
-  loginWithCognito: (email: string, password: string) => Promise<void>;
+  loginWithCognito: (email: string, password: string) => Promise<{ requireNewPassword?: boolean }>;
+  confirmNewPassword: (newPassword: string) => Promise<void>;
   logoutFromCognito: () => Promise<void>;
   refreshSession: () => Promise<string | null>;
   checkAuthStatus: () => Promise<void>;
@@ -34,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      pendingSignIn: false,
 
       // Login with Cognito
       loginWithCognito: async (email: string, password: string) => {
@@ -41,18 +44,47 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, error: null });
           
           // Sign in với Cognito
-          const { isSignedIn } = await signIn({
+          const signInResult = await signIn({
             username: email,
             password: password,
           });
 
-          if (isSignedIn) {
+          // Kiểm tra xem có cần bước bổ sung không
+          if (!signInResult.isSignedIn && signInResult.nextStep) {
+            const nextStep = signInResult.nextStep.signInStep;
+            
+            // Xử lý các trường hợp đặc biệt
+            switch (nextStep) {
+              case 'CONFIRM_SIGN_UP':
+                throw new Error('Tài khoản chưa được xác nhận. Vui lòng kiểm tra email để xác nhận tài khoản.');
+              case 'RESET_PASSWORD':
+                throw new Error('Bạn cần reset mật khẩu. Vui lòng sử dụng chức năng quên mật khẩu.');
+              case 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED':
+                // Trả về flag để UI biết cần đổi mật khẩu
+                set({ pendingSignIn: true, isLoading: false });
+                return { requireNewPassword: true };
+              case 'CONFIRM_SIGN_IN_WITH_SMS_CODE':
+              case 'CONFIRM_SIGN_IN_WITH_TOTP_CODE':
+                throw new Error('Tài khoản yêu cầu xác thực 2 lớp (MFA). Chức năng này chưa được hỗ trợ.');
+              case 'CONTINUE_SIGN_IN_WITH_MFA_SELECTION':
+                throw new Error('Vui lòng chọn phương thức xác thực MFA.');
+              case 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE':
+                throw new Error('Tài khoản yêu cầu xác thực đặc biệt.');
+              default:
+                throw new Error(`Yêu cầu bước xác thực: ${nextStep}. Vui lòng liên hệ quản trị viên.`);
+            }
+          }
+
+          if (signInResult.isSignedIn) {
+            // Đợi một chút để đảm bảo session được tạo
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             // Lấy tokens từ session
-            const session = await fetchAuthSession();
+            const session = await fetchAuthSession({ forceRefresh: true });
             const tokens = session.tokens;
             
-            if (!tokens) {
-              throw new Error('No tokens received from Cognito');
+            if (!tokens || !tokens.accessToken) {
+              throw new Error('Không nhận được token từ Cognito. Vui lòng thử lại.');
             }
 
             // Lấy thông tin user
@@ -60,12 +92,15 @@ export const useAuthStore = create<AuthState>()(
             const userAttributes = await fetchUserAttributes();
 
             // Tạo User object
+            const customRole = userAttributes['custom:role'];
+            const roleValue = customRole ? (customRole as 'Student' | 'Lecturer' | 'Admin') : 'Student';
+            
             const userData: User = {
               id: currentUser.userId,
               username: currentUser.username,
               email: userAttributes.email || email,
               fullName: userAttributes.name || userAttributes.email || '',
-              role: (userAttributes['custom:role'] as 'Student' | 'Lecturer' | 'Admin') || 'Student',
+              role: roleValue,
               token: tokens.accessToken.toString(), // For backward compatibility
               avatar: userAttributes.picture || '',
               phone: userAttributes.phone_number || '',
@@ -87,15 +122,86 @@ export const useAuthStore = create<AuthState>()(
               error: null,
             });
 
-            console.log('Login successful with Cognito');
+            return {};
+          } else {
+            throw new Error('Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập.');
           }
         } catch (error: any) {
-          console.error('Cognito login error:', error);
           const errorMessage = error.message || 'Đăng nhập thất bại';
           set({
             error: errorMessage,
             isLoading: false,
             isAuthenticated: false,
+            pendingSignIn: false,
+          });
+          throw error;
+        }
+      },
+
+      // Confirm new password when required
+      confirmNewPassword: async (newPassword: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          
+          // Confirm sign in với mật khẩu mới
+          const confirmResult = await confirmSignIn({
+            challengeResponse: newPassword,
+          });
+          
+          if (confirmResult.isSignedIn) {
+            
+            // Đợi một chút để đảm bảo session được tạo
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Lấy tokens từ session
+            const session = await fetchAuthSession({ forceRefresh: true });
+            const tokens = session.tokens;
+            
+            if (!tokens || !tokens.accessToken) {
+              throw new Error('Không nhận được token sau khi đổi mật khẩu.');
+            }
+            
+            // Lấy thông tin user
+            const currentUser = await getCurrentUser();
+            const userAttributes = await fetchUserAttributes();
+            
+            const customRole = userAttributes['custom:role'];
+            const roleValue = customRole ? (customRole as 'Student' | 'Lecturer' | 'Admin') : 'Student';
+            
+            const userData: User = {
+              id: currentUser.userId,
+              username: currentUser.username,
+              email: userAttributes.email || '',
+              fullName: userAttributes.name || userAttributes.email || '',
+              role: roleValue,
+              token: tokens.accessToken.toString(),
+              avatar: userAttributes.picture || '',
+              phone: userAttributes.phone_number || '',
+              isEmailVerified: userAttributes.email_verified === 'true',
+              lastLogin: new Date().toISOString(),
+              loginMethod: 'cognito',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            
+            set({
+              user: userData,
+              accessToken: tokens.accessToken.toString(),
+              refreshToken: tokens.refreshToken?.toString() || null,
+              idToken: tokens.idToken?.toString() || null,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+              pendingSignIn: false,
+            });
+          } else {
+            throw new Error('Xác nhận mật khẩu thất bại.');
+          }
+        } catch (error: any) {
+          const errorMessage = error.message || 'Đổi mật khẩu thất bại';
+          set({
+            error: errorMessage,
+            isLoading: false,
           });
           throw error;
         }
@@ -117,12 +223,11 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             isLoading: false,
             error: null,
+            pendingSignIn: false,
           });
-
-          console.log('Logout successful');
         } catch (error: any) {
-          console.error('Logout error:', error);
           set({ isLoading: false, error: error.message });
+          throw error;
         }
       },
 
