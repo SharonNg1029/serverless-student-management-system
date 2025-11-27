@@ -1,124 +1,103 @@
-import { createToaster, Toaster as ChakraToaster, Toast } from '@chakra-ui/react'
+import { createToaster, Toaster as ChakraToaster, Toast, Box, HStack } from '@chakra-ui/react'
 import { CheckCircle2, XCircle, AlertCircle, Info } from 'lucide-react'
 
 export const toaster = createToaster({
   placement: 'bottom-end',
-  pauseOnPageIdle: true
+  pauseOnPageIdle: true,
+  overlap: true,
+  gap: 16,
 })
 
 export function Toaster() {
   return (
     <ChakraToaster toaster={toaster}>
       {(toast) => {
-        const getBackgroundColor = () => {
+        const getColorScheme = () => {
           switch (toast.type) {
-            case 'success':
-              return '#22c55e'
-            case 'error':
-              return '#ef4444'
-            case 'warning':
-              return '#f97316'
-            case 'info':
-              return '#1f2937'
-            default:
-              return '#64748b'
+            case 'success': return { bg: 'green.500', iconColor: 'white' }
+            case 'error': return { bg: 'red.500', iconColor: 'white' }
+            case 'warning': return { bg: 'orange.500', iconColor: 'white' }
+            case 'info': return { bg: 'blue.600', iconColor: 'white' }
+            default: return { bg: 'gray.600', iconColor: 'white' }
           }
         }
 
         const getIcon = () => {
+          const colors = getColorScheme()
+          const iconProps = { size: 20, color: colors.iconColor }
+          
           switch (toast.type) {
-            case 'success':
-              return <CheckCircle2 size={20} />
-            case 'error':
-              return <XCircle size={20} />
-            case 'warning':
-              return <AlertCircle size={20} />
-            case 'info':
-              return <Info size={20} />
-            default:
-              return null
+            case 'success': return <CheckCircle2 {...iconProps} />
+            case 'error': return <XCircle {...iconProps} />
+            case 'warning': return <AlertCircle {...iconProps} />
+            case 'info': return <Info {...iconProps} />
+            default: return null
           }
         }
 
+        const colorScheme = getColorScheme()
+
         return (
           <Toast.Root
-            style={{
-              position: 'relative',
-              background: getBackgroundColor(),
-              color: 'white',
-              padding: '14px 48px 14px 16px',
-              borderRadius: '8px',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2), 0 6px 10px rgba(0, 0, 0, 0.15)',
-              minWidth: '400px',
-              maxWidth: '500px',
-              zIndex: 9999,
-              pointerEvents: 'auto',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}
+            position="relative"
+            bg={colorScheme.bg}
+            color="white"
+            p="3.5"
+            pr="12"
+            borderRadius="lg"
+            boxShadow="2xl"
+            minW="400px"
+            maxW="500px"
+            zIndex={9999}
+            pointerEvents="auto"
           >
-            <div
-              style={{
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {getIcon()}
-            </div>
-            <div style={{ flex: 1 }}>
-              {toast.title && (
-                <Toast.Title
-                  style={{
-                    fontWeight: '600',
-                    fontSize: '15px',
-                    marginBottom: toast.description ? '4px' : '0',
-                    color: 'white',
-                    lineHeight: '1.4'
-                  }}
-                >
-                  {toast.title}
-                </Toast.Title>
-              )}
-              {toast.description && (
-                <Toast.Description
-                  style={{
-                    fontSize: '13px',
-                    opacity: 0.95,
-                    lineHeight: '1.5',
-                    color: 'white'
-                  }}
-                >
-                  {toast.description}
-                </Toast.Description>
-              )}
-            </div>
+            <HStack gap="3" align="flex-start">
+              <Box flexShrink={0} display="flex" alignItems="center" mt="0.5">
+                {getIcon()}
+              </Box>
+              
+              <Box flex="1">
+                {toast.title && (
+                  <Toast.Title 
+                    fontWeight="semibold" 
+                    fontSize="md"
+                    mb={toast.description ? '1' : '0'}
+                    color="white"
+                    lineHeight="1.4"
+                  >
+                    {toast.title}
+                  </Toast.Title>
+                )}
+                {toast.description && (
+                  <Toast.Description 
+                    fontSize="sm" 
+                    opacity={0.95}
+                    lineHeight="1.5"
+                    color="white"
+                  >
+                    {toast.description}
+                  </Toast.Description>
+                )}
+              </Box>
+            </HStack>
+
             <Toast.CloseTrigger
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                border: 'none',
-                borderRadius: '4px',
-                width: '20px',
-                height: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'white',
-                fontSize: '14px',
-                transition: 'all 0.2s ease',
-                flexShrink: 0
+              position="absolute"
+              top="3"
+              right="3"
+              bg="whiteAlpha.200"
+              borderRadius="md"
+              w="5"
+              h="5"
+              color="white"
+              fontSize="sm"
+              transition="all 0.2s"
+              _hover={{
+                bg: 'whiteAlpha.300',
+                transform: 'scale(1.1)',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
+              _active={{
+                transform: 'scale(0.95)',
               }}
             />
           </Toast.Root>
@@ -127,3 +106,5 @@ export function Toaster() {
     </ChakraToaster>
   )
 }
+
+
