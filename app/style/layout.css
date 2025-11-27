@@ -14,6 +14,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: linear-gradient(135deg, #293548 0%, #1e2633 100%);
   color: #333333;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Override background for admin layout */
+body:has(.admin-layout) {
+  background: #f1f5f9 !important;
+  overflow: hidden;
 }
 
 .layout {
@@ -21,12 +30,14 @@ body {
   flex-direction: column;
   min-height: 100vh;
   background-color: #f8f9fa;
+  position: relative;
 }
 
 .layout-content {
-  flex: 1;
+  flex: 1 0 auto;
   padding: 2rem 0;
   background-color: #f8f9fa;
+  width: 100%;
 }
 
 /* Remove padding for login pages */

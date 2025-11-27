@@ -1,146 +1,120 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import TableList from '../../../components/common/TableList';
+import type { Column } from '../../../components/common/TableList';
+import { Mail, UserCheck, UserX, Edit, Hash } from 'lucide-react';
+import type { UserEntity } from '../../../types';
 
-interface User {
-  id: string
-  email: string
-  fullName: string
-  role: string
-  createdAt: string
-}
+// Extended type for display with additional fields
+type UserDisplay = UserEntity & {
+  role_name: string;
+  created_at: string;
+  avatar?: string | null;
+};
 
-export default function UsersListRoute() {
-  const navigate = useNavigate()
-  const [users, setUsers] = useState<User[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterRole, setFilterRole] = useState('all')
-  const [loading, setLoading] = useState(false)
+const mockUsers: UserDisplay[] = [
+  { id: 1, codeUser: 'SV2021001', name: 'Nguyễn Văn Hùng', email: 'hung.nv@student.edu.vn', role_id: 3, role_name: 'student', status: 1, created_at: '2023-09-01' },
+  { id: 2, codeUser: 'GV0015', name: 'Trần Thị Mai', email: 'mai.tt@lecturer.edu.vn', role_id: 2, role_name: 'lecturer', status: 1, created_at: '2022-01-15' },
+  { id: 3, codeUser: 'SV2021099', name: 'Lê Minh Tú', email: 'tu.lm@student.edu.vn', role_id: 3, role_name: 'student', status: 0, created_at: '2023-09-01' }, // Banned
+  { id: 4, codeUser: 'AD001', name: 'Phạm Admin', email: 'admin@edu.vn', role_id: 1, role_name: 'admin', status: 1, created_at: '2021-01-01' },
+];
 
-  useEffect(() => {
-    fetchUsers()
-  }, [filterRole])
+const UsersList: React.FC = () => {
+  const navigate = useNavigate();
 
-  const fetchUsers = async () => {
-    setLoading(true)
-    try {
-      // TODO: Fetch users from API/Lambda
-      // const response = await fetch('/api/admin/users')
-      // setUsers(response.data)
-    } catch (error) {
-      console.error('Failed to fetch users:', error)
-    } finally {
-      setLoading(false)
+  const columns: Column<UserDisplay>[] = [
+    {
+      header: 'Thông tin cá nhân',
+      accessor: 'name',
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          <img 
+            src={row.avatar || `https://ui-avatars.com/api/?name=${row.name}&background=random`} 
+            alt={row.name}
+            className="w-10 h-10 rounded-full object-cover border border-slate-200"
+          />
+          <div>
+            <div className="font-bold text-slate-800 text-sm">{row.name}</div>
+            <div className="text-xs text-slate-500 flex items-center gap-1">
+               <Mail size={10} /> {row.email}
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      header: 'Mã định danh',
+      accessor: 'codeUser',
+      render: (row) => (
+        <div className="flex items-center gap-1.5 text-slate-600 font-mono text-xs bg-slate-100 px-2 py-1 rounded w-fit">
+          <Hash size={10} />
+          {row.codeUser}
+        </div>
+      )
+    },
+    {
+      header: 'Vai trò',
+      accessor: 'role_name',
+      render: (row) => {
+        const roles: Record<string, { label: string; bg: string; text: string }> = {
+          student: { label: 'Sinh viên', bg: 'bg-blue-50', text: 'text-blue-600' },
+          lecturer: { label: 'Giảng viên', bg: 'bg-purple-50', text: 'text-purple-600' },
+          admin: { label: 'Quản trị', bg: 'bg-red-50', text: 'text-red-600' },
+        };
+        const conf = roles[row.role_name || 'student'];
+        return (
+          <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase ${conf.bg} ${conf.text}`}>
+            {conf.label}
+          </span>
+        );
+      }
+    },
+    {
+      header: 'Trạng thái',
+      accessor: 'status',
+      render: (row) => (
+        <div className="flex items-center gap-2">
+           {row.status === 1 ? (
+             <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+               <UserCheck size={12} /> Hoạt động
+             </span>
+           ) : (
+             <span className="flex items-center gap-1 text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-full">
+               <UserX size={12} /> Đã khóa (Ban)
+             </span>
+           )}
+        </div>
+      )
+    },
+    {
+      header: 'Thao tác',
+      accessor: 'id',
+      render: (row) => (
+         <button 
+           onClick={() => navigate(`/admin/users-management/edit/${row.id}`)}
+           className="p-2 text-slate-400 hover:text-[#dd7323] hover:bg-orange-50 rounded-lg transition-colors"
+           title="Chỉnh sửa"
+         >
+            <Edit size={16} />
+         </button>
+      )
     }
-  }
+  ];
 
-  const handleSearch = (value: string) => {
-    setSearchTerm(value)
-    // TODO: Implement search logic
-  }
-
-  const handleDelete = async (userId: string) => {
-    if (!confirm('Bạn có chắc muốn xóa người dùng này?')) return
-    
-    try {
-      // TODO: Delete user via API/Lambda
-      console.log('Deleting user:', userId)
-      fetchUsers()
-    } catch (error) {
-      console.error('Failed to delete user:', error)
-    }
-  }
-
-  const handleAssignLecturer = async (userId: string) => {
-    // TODO: Implement assign lecturer logic
-    console.log('Assign lecturer to user:', userId)
-  }
+  const handleImport = () => {
+    alert("Tính năng Import Excel sẽ xử lý các trường: codeUser, name, email, role_id");
+  };
 
   return (
-    <div className="users-list-container">
-      <div className="page-header">
-        <h1>Quản lý người dùng</h1>
-        <button 
-          className="btn-primary"
-          onClick={() => navigate('/admin/users-management/create')}
-        >
-          Thêm người dùng
-        </button>
-      </div>
+    <TableList 
+      title="Quản lý Người dùng"
+      subtitle="Danh sách tài khoản (Student, Lecturer, Admin) trong hệ thống."
+      data={mockUsers}
+      columns={columns}
+      onAdd={() => navigate('/admin/users-management/create')}
+      onImport={handleImport}
+    />
+  );
+};
 
-      <div className="filters-section">
-        <input
-          type="text"
-          placeholder="Tìm kiếm theo tên, email..."
-          value={searchTerm}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="search-input"
-        />
-        
-        <select 
-          value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value)}
-          className="filter-select"
-        >
-          <option value="all">Tất cả vai trò</option>
-          <option value="Student">Sinh viên</option>
-          <option value="Lecturer">Giảng viên</option>
-          <option value="Admin">Quản trị viên</option>
-        </select>
-      </div>
-
-      {loading ? (
-        <div className="loading">Đang tải...</div>
-      ) : (
-        <div className="users-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Họ tên</th>
-                <th>Vai trò</th>
-                <th>Ngày tạo</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td>{user.email}</td>
-                  <td>{user.fullName}</td>
-                  <td>{user.role}</td>
-                  <td>{new Date(user.createdAt).toLocaleDateString('vi-VN')}</td>
-                  <td>
-                    <button 
-                      onClick={() => navigate(`/admin/users-management/edit/${user.id}`)}
-                      className="btn-edit"
-                    >
-                      Sửa
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(user.id)}
-                      className="btn-delete"
-                    >
-                      Xóa
-                    </button>
-                    {user.role === 'Lecturer' && (
-                      <button 
-                        onClick={() => handleAssignLecturer(user.id)}
-                        className="btn-assign"
-                      >
-                        Phân công
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {users.length === 0 && (
-            <div className="no-data">Không có dữ liệu</div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
+export default UsersList;

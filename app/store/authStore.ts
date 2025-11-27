@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { signIn, signOut, fetchAuthSession, getCurrentUser, fetchUserAttributes, confirmSignIn, type ConfirmSignInOutput } from '@aws-amplify/auth';
-import type { User } from '../types/user';
+import type { User } from '../types';
+
 
 interface AuthState {
   user: User | null;
@@ -91,9 +92,47 @@ export const useAuthStore = create<AuthState>()(
             const currentUser = await getCurrentUser();
             const userAttributes = await fetchUserAttributes();
 
-            // Tạo User object
-            const customRole = userAttributes['custom:role'];
-            const roleValue = customRole ? (customRole as 'Student' | 'Lecturer' | 'Admin') : 'Student';
+            // Debug: Log để kiểm tra
+            console.log('=== DEBUG LOGIN ===');
+            console.log('User Attributes:', JSON.stringify(userAttributes, null, 2));
+            console.log('ID Token Payload:', JSON.stringify(tokens.idToken?.payload, null, 2));
+            console.log('All ID Token:', tokens.idToken);
+            
+            // Lấy role từ nhiều nguồn có thể:
+            // 1. ID Token payload (custom:role)
+            // 2. User attributes (custom:role hoặc custom:Role)
+            // 3. User attributes (role)
+            const idTokenRole = tokens.idToken?.payload['custom:role'];
+            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role;
+            let finalRole = idTokenRole || attrRole;
+            
+            console.log('ID Token Role:', idTokenRole);
+            console.log('Attributes Role:', attrRole);
+            console.log('Final Role:', finalRole);
+            
+            // If no role found in Cognito, try to fetch from DynamoDB
+            if (!finalRole) {
+              console.log('⚠️ No role in Cognito, fetching from DynamoDB...');
+              try {
+                const dynamoRole = await fetchUserRoleFromDynamoDB(
+                  currentUser.userId,
+                  tokens.accessToken.toString()
+                );
+                if (dynamoRole) {
+                  finalRole = dynamoRole;
+                  console.log('✅ Role from DynamoDB:', dynamoRole);
+                } else {
+                  console.log('⚠️ No role in DynamoDB either, using default');
+                }
+              } catch (error) {
+                console.error('Failed to fetch role from DynamoDB:', error);
+              }
+            }
+            
+            console.log('Final Role will be:', finalRole || 'Student (DEFAULT)');
+            
+            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student';
+            console.log('=== END DEBUG ===');
             
             const userData: User = {
               id: currentUser.userId,
@@ -115,7 +154,7 @@ export const useAuthStore = create<AuthState>()(
             set({
               user: userData,
               accessToken: tokens.accessToken.toString(),
-              refreshToken: tokens.refreshToken?.toString() || null,
+              refreshToken: null, // AWS Amplify v6 manages refresh token internally
               idToken: tokens.idToken?.toString() || null,
               isAuthenticated: true,
               isLoading: false,
@@ -165,8 +204,19 @@ export const useAuthStore = create<AuthState>()(
             const currentUser = await getCurrentUser();
             const userAttributes = await fetchUserAttributes();
             
-            const customRole = userAttributes['custom:role'];
-            const roleValue = customRole ? (customRole as 'Student' | 'Lecturer' | 'Admin') : 'Student';
+            // Debug: Log
+            console.log('=== DEBUG CONFIRM PASSWORD ===');
+            console.log('User Attributes:', userAttributes);
+            console.log('ID Token Payload:', tokens.idToken?.payload);
+            
+            // Lấy role từ ID Token hoặc attributes
+            const idTokenRole = tokens.idToken?.payload['custom:role'];
+            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role;
+            const finalRole = idTokenRole || attrRole;
+            
+            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student';
+            console.log('Final Role:', roleValue);
+            console.log('=== END DEBUG ===');
             
             const userData: User = {
               id: currentUser.userId,
@@ -187,7 +237,7 @@ export const useAuthStore = create<AuthState>()(
             set({
               user: userData,
               accessToken: tokens.accessToken.toString(),
-              refreshToken: tokens.refreshToken?.toString() || null,
+              refreshToken: null, // AWS Amplify v6 manages refresh token internally
               idToken: tokens.idToken?.toString() || null,
               isAuthenticated: true,
               isLoading: false,
@@ -242,7 +292,7 @@ export const useAuthStore = create<AuthState>()(
             
             set({
               accessToken,
-              refreshToken: tokens.refreshToken?.toString() || null,
+              refreshToken: null, // AWS Amplify v6 manages refresh token internally
               idToken: tokens.idToken?.toString() || null,
             });
             
@@ -268,12 +318,26 @@ export const useAuthStore = create<AuthState>()(
           if (currentUser && tokens?.accessToken) {
             const userAttributes = await fetchUserAttributes();
             
+            // Debug: Log
+            console.log('=== DEBUG CHECK AUTH ===');
+            console.log('User Attributes:', userAttributes);
+            console.log('ID Token Payload:', tokens.idToken?.payload);
+            
+            // Lấy role từ ID Token hoặc attributes
+            const idTokenRole = tokens.idToken?.payload['custom:role'];
+            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role;
+            const finalRole = idTokenRole || attrRole;
+            
+            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student';
+            console.log('Final Role:', roleValue);
+            console.log('=== END DEBUG ===');
+            
             const userData: User = {
               id: currentUser.userId,
               username: currentUser.username,
               email: userAttributes.email || '',
               fullName: userAttributes.name || userAttributes.email || '',
-              role: (userAttributes['custom:role'] as 'Student' | 'Lecturer' | 'Admin') || 'Student',
+              role: roleValue,
               token: tokens.accessToken.toString(),
               avatar: userAttributes.picture || '',
               phone: userAttributes.phone_number || '',
@@ -287,7 +351,7 @@ export const useAuthStore = create<AuthState>()(
             set({
               user: userData,
               accessToken: tokens.accessToken.toString(),
-              refreshToken: tokens.refreshToken?.toString() || null,
+              refreshToken: null, // AWS Amplify v6 manages refresh token internally
               idToken: tokens.idToken?.toString() || null,
               isAuthenticated: true,
             });
