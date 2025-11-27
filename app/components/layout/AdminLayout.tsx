@@ -8,15 +8,13 @@ import {
   BarChart2, 
   Settings, 
   Menu,
-  Bell,
-  Search,
-  GraduationCap,
   MessageSquarePlus,
   ShieldAlert,
   ChevronLeft
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import UserMenu from './UserMenu';
+import NotificationBell from '../notifications/NotificationBell';
 
 const SidebarItem: React.FC<{ 
   to: string; 
@@ -77,12 +75,12 @@ const AdminLayout: React.FC = () => {
           
           {/* Logo & Text - Visible when Expanded */}
           <div className={`flex items-center gap-3 overflow-hidden ${isCollapsed ? 'hidden' : 'flex'}`}>
-            <div className="w-10 h-10 bg-gradient-to-br from-[#dd7323] to-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg shrink-0">
-              <GraduationCap size={24} />
+            <div className="w-15 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0">
+              <img src="/Logo_AWS.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             <div className="min-w-[140px]">
-              <h1 className="text-lg font-bold text-white leading-tight whitespace-nowrap">UniServerless</h1>
-              <span className="text-xs text-slate-400 font-medium tracking-wide whitespace-nowrap">LMS Admin Portal</span>
+              <h1 className="text-lg font-bold text-white leading-tight whitespace-nowrap">Uni LMS</h1>
+              <span className="text-xs text-slate-400 font-medium tracking-wide whitespace-nowrap">Admin Dashboard</span>
             </div>
           </div>
 
@@ -91,10 +89,10 @@ const AdminLayout: React.FC = () => {
             // Collapsed: Show Logo as a button to Expand
             <button 
               onClick={toggleSidebarDesktop}
-              className="w-10 h-10 bg-gradient-to-br from-[#dd7323] to-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform group"
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg hover:scale-105 transition-transform group"
               title="Mở rộng"
             >
-              <GraduationCap size={24} className="group-hover:rotate-12 transition-transform" />
+              <img src="/Logo_AWS.png" alt="Logo" className="w-full h-full object-contain group-hover:rotate-12 transition-transform" />
             </button>
           ) : (
             // Expanded: Show Chevron to Collapse
@@ -148,21 +146,10 @@ const AdminLayout: React.FC = () => {
             >
               <Menu size={24} className="text-slate-600" />
             </button>
-            <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-slate-100/50 border border-transparent focus-within:border-[#dd7323]/50 focus-within:bg-white rounded-xl w-72 transition-all">
-              <Search size={18} className="text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Tìm kiếm sinh viên, lớp học..." 
-                className="bg-transparent border-none outline-none text-sm w-full text-slate-700 placeholder-slate-400"
-              />
-            </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="relative p-2.5 hover:bg-slate-100 rounded-full cursor-pointer transition-colors group">
-              <Bell size={20} className="text-slate-600 group-hover:text-[#dd7323] transition-colors" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white animate-pulse"></span>
-            </button>
+            <NotificationBell />
             <div className="pl-4 border-l border-slate-200">
               <UserMenu />
             </div>
