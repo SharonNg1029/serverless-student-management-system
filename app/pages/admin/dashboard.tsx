@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   Users, 
   BookOpen, 
@@ -111,7 +110,7 @@ const RISK_STUDENTS = [
 
 // --- Components ---
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, trend, trendLabel, icon, variant }) => {
+const StatCard = ({ title, value, trend, trendLabel, icon, variant }: StatCardProps) => {
   // Define styles map
   const styles = {
     orange: { iconBg: 'bg-orange-50', iconText: 'text-[#dd7323]', trendPos: 'text-emerald-600 bg-emerald-50', trendNeg: 'text-rose-600 bg-rose-50' },
@@ -149,7 +148,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, trend, trendLabel, ic
   );
 };
 
-const RiskItem: React.FC<{ student: typeof RISK_STUDENTS[0] }> = ({ student }) => (
+const RiskItem = ({ student }: { student: typeof RISK_STUDENTS[0] }) => (
   <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-white hover:border-orange-100 hover:shadow-sm transition-all group">
     <div className="flex items-center gap-4">
       <div className="relative">
@@ -175,7 +174,7 @@ const RiskItem: React.FC<{ student: typeof RISK_STUDENTS[0] }> = ({ student }) =
   </div>
 );
 
-const AdminDashboard: React.FC = () => {
+const AdminDashboard = () => {
   return (
     <div className="space-y-8 pb-10 max-w-7xl mx-auto">
       {/* Header */}

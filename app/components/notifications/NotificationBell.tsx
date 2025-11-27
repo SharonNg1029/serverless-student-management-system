@@ -54,136 +54,54 @@ export default function NotificationBell() {
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '0.5rem',
-          borderRadius: '6px',
-          transition: 'all 0.3s ease',
-          position: 'relative'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = 'rgba(227, 130, 20, 0.1)';
-          e.currentTarget.style.color = '#e38214';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
-          e.currentTarget.style.color = '#fff';
-        }}
+        className="relative p-2.5 hover:bg-slate-100 rounded-full cursor-pointer transition-colors group"
       >
-        <Bell size={20} />
+        <Bell size={20} className="text-slate-600 group-hover:text-[#dd7323] transition-colors" />
         {unreadCount > 0 && (
-          <span style={{
-            position: 'absolute',
-            top: '2px',
-            right: '2px',
-            backgroundColor: '#e53e3e',
-            color: '#fff',
-            borderRadius: '50%',
-            width: '18px',
-            height: '18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '10px',
-            fontWeight: 'bold'
-          }}>
-            {unreadCount}
-          </span>
+          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white animate-pulse"></span>
         )}
       </button>
 
       {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          right: 0,
-          marginTop: '0.5rem',
-          backgroundColor: '#fff',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-          minWidth: '320px',
-          maxWidth: '400px',
-          zIndex: 9999,
-          maxHeight: '400px',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <div style={{
-            padding: '1rem',
-            borderBottom: '1px solid #e2e8f0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Thông báo</h3>
+        <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-lg min-w-[320px] max-w-[400px] z-[9999] max-h-[400px] overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+            <h3 className="m-0 text-base font-semibold">Thông báo</h3>
             {unreadCount > 0 && (
               <button 
                 onClick={markAllAsRead}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#e38214',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  padding: '0.25rem 0.5rem'
-                }}
+                className="bg-transparent border-none text-[#dd7323] text-sm cursor-pointer py-1 px-2 hover:text-[#c46420] transition-colors"
               >
                 Đánh dấu đã đọc
               </button>
             )}
           </div>
 
-          <div style={{
-            overflowY: 'auto',
-            maxHeight: '350px'
-          }}>
+          <div className="overflow-y-auto max-h-[350px]">
             {notifications.map((notification) => (
               <div
                 key={notification.id}
                 onClick={() => markAsRead(notification.id)}
-                style={{
-                  padding: '1rem',
-                  borderBottom: '1px solid #f0f0f0',
-                  cursor: 'pointer',
-                  backgroundColor: notification.read ? '#fff' : '#f7fafc',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f0f0f0';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = notification.read ? '#fff' : '#f7fafc';
-                }}
+                className={`p-4 border-b border-slate-100 cursor-pointer transition-colors hover:bg-slate-100 ${
+                  notification.read ? 'bg-white' : 'bg-slate-50'
+                }`}
               >
-                <div style={{ fontWeight: '600', marginBottom: '0.25rem', color: '#2d3748' }}>
+                <div className="font-semibold mb-1 text-slate-800">
                   {notification.title}
                 </div>
-                <div style={{ fontSize: '14px', color: '#4a5568', marginBottom: '0.5rem' }}>
+                <div className="text-sm text-slate-600 mb-2">
                   {notification.message}
                 </div>
-                <div style={{ fontSize: '12px', color: '#a0aec0' }}>
+                <div className="text-xs text-slate-400">
                   {new Date(notification.timestamp).toLocaleString('vi-VN')}
                 </div>
               </div>
             ))}
             
             {notifications.length === 0 && (
-              <div style={{
-                padding: '2rem',
-                textAlign: 'center',
-                color: '#a0aec0',
-                fontSize: '14px'
-              }}>
+              <div className="p-8 text-center text-slate-400 text-sm">
                 Không có thông báo mới
               </div>
             )}

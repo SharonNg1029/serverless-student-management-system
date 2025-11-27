@@ -3,11 +3,12 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { useAuthStore } from '../../store/authStore'
 import { toaster } from '../../components/ui/toaster'
+import GoogleSignInButton from '../../components/common/GoogleSignInButton'
 import '../../style/login.css'
 
 export default function LoginRoute() {
   const navigate = useNavigate()
-  const { loginWithCognito, confirmNewPassword, setLoading, isLoading } = useAuthStore()
+  const { loginWithCognito, loginWithGoogle, confirmNewPassword, setLoading, isLoading } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -145,6 +146,50 @@ export default function LoginRoute() {
     navigate('/auth/reset-password')
   }
 
+  const handleGoogleSuccess = async (credential: string) => {
+    try {
+      setLocalError(null);
+      
+      // Gọi loginWithGoogle từ authStore
+      await loginWithGoogle(credential);
+      
+      // Lấy thông tin user từ store sau khi login
+      const { user } = useAuthStore.getState();
+      
+      toaster.create({
+        title: 'Đăng nhập Google thành công',
+        description: `Xin chào, ${user?.fullName}!`,
+        type: 'success',
+        duration: 3000,
+      });
+
+      // Redirect dựa trên role
+      const redirectPath = user?.role ? getRedirectPathByRole(user.role) : '/home';
+      
+      // Đợi một chút để toast hiển thị
+      await new Promise(resolve => setTimeout(resolve, 500));
+      navigate(redirectPath, { replace: true });
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      setLocalError(error.message || 'Đăng nhập Google thất bại');
+      toaster.create({
+        title: 'Đăng nhập Google thất bại',
+        description: error.message || 'Có lỗi xảy ra khi đăng nhập',
+        type: 'error',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleGoogleError = () => {
+    toaster.create({
+      title: 'Đăng nhập Google thất bại',
+      description: 'Không thể kết nối với Google',
+      type: 'error',
+      duration: 5000,
+    });
+  };
+
   return (
     <div className="login-container">
       <div className="login-wrapper">
@@ -228,6 +273,17 @@ export default function LoginRoute() {
               >
                 {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
               </button>
+
+              <div className="divider">
+                <span>Hoặc</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+                <GoogleSignInButton 
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                />
+              </div>
             </form>
           ) : (
             <form onSubmit={handleNewPasswordSubmit} className="login-form">

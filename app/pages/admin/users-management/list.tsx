@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TableList from '../../../components/common/TableList';
 import type { Column } from '../../../components/common/TableList';
-import { Mail, UserCheck, UserX, Edit, Hash } from 'lucide-react';
+import { Mail, UserCheck, UserX, Edit, Hash, Search, X, Loader2 } from 'lucide-react';
 import type { UserEntity } from '../../../types';
+import api from '../../../utils/axios';
+import { toaster } from '../../../components/ui/toaster';
 
 // Extended type for display with additional fields
 type UserDisplay = UserEntity & {
@@ -12,15 +14,106 @@ type UserDisplay = UserEntity & {
   avatar?: string | null;
 };
 
-const mockUsers: UserDisplay[] = [
-  { id: 1, codeUser: 'SV2021001', name: 'Nguyễn Văn Hùng', email: 'hung.nv@student.edu.vn', role_id: 3, role_name: 'student', status: 1, created_at: '2023-09-01' },
-  { id: 2, codeUser: 'GV0015', name: 'Trần Thị Mai', email: 'mai.tt@lecturer.edu.vn', role_id: 2, role_name: 'lecturer', status: 1, created_at: '2022-01-15' },
-  { id: 3, codeUser: 'SV2021099', name: 'Lê Minh Tú', email: 'tu.lm@student.edu.vn', role_id: 3, role_name: 'student', status: 0, created_at: '2023-09-01' }, // Banned
-  { id: 4, codeUser: 'AD001', name: 'Phạm Admin', email: 'admin@edu.vn', role_id: 1, role_name: 'admin', status: 1, created_at: '2021-01-01' },
-];
+// UserDTO from backend
+interface UserDTO {
+  id: number;
+  codeUser: string;
+  name: string;
+  email: string;
+  role_id: number;
+  date_of_birth?: string;
+  status: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 const UsersList: React.FC = () => {
   const navigate = useNavigate();
+  
+  // States for data and loading
+  const [users, setUsers] = useState<UserDisplay[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  
+  // States for filters
+  const [keyword, setKeyword] = useState<string>('');
+  const [roleId, setRoleId] = useState<string>('');
+  
+  // Debounced keyword for API calls
+  const [debouncedKeyword, setDebouncedKeyword] = useState<string>('');
+  
+  // Role mapping
+  const roleMap: Record<number, string> = {
+    1: 'Admin',
+    2: 'Lecturer',
+    3: 'Student'
+  };
+
+  // Debounce keyword input (wait 500ms after user stops typing)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedKeyword(keyword);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [keyword]);
+
+  // Fetch users from API
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      
+      // Build query params
+      const params: Record<string, string> = {};
+      if (debouncedKeyword.trim()) params.keyword = debouncedKeyword.trim();
+      if (roleId) params.role_id = roleId;
+      
+      const response = await api.get<{ results: UserDTO[] }>('/admin/users', { params });
+      
+      // Transform UserDTO to UserDisplay format
+      const transformedUsers: UserDisplay[] = response.data.results.map((dto) => ({
+        id: dto.id,
+        codeUser: dto.codeUser,
+        name: dto.name,
+        email: dto.email,
+        role_id: dto.role_id,
+        role_name: roleMap[dto.role_id] || 'student',
+        date_of_birth: dto.date_of_birth,
+        status: dto.status,
+        created_at: dto.createdAt || new Date().toISOString(),
+        createdAt: dto.createdAt,
+        updatedAt: dto.updatedAt,
+        avatar: null
+      }));
+      
+      setUsers(transformedUsers);
+      
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+      toaster.create({
+        title: 'Lỗi tải dữ liệu',
+        description: error.response?.data?.message || 'Không thể tải danh sách người dùng',
+        type: 'error'
+      });
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on mount and when filters change
+  useEffect(() => {
+    fetchUsers();
+  }, [debouncedKeyword, roleId]);
+
+  // Handle clear filters
+  const handleClearFilters = () => {
+    setKeyword('');
+    setRoleId('');
+  };
+
+  // Check if any filter is active
+  const hasActiveFilters = keyword || roleId !== '';
+
 
   const columns: Column<UserDisplay>[] = [
     {
@@ -106,14 +199,72 @@ const UsersList: React.FC = () => {
   };
 
   return (
-    <TableList 
-      title="Quản lý Người dùng"
-      subtitle="Danh sách tài khoản (Student, Lecturer, Admin) trong hệ thống."
-      data={mockUsers}
-      columns={columns}
-      onAdd={() => navigate('/admin/users-management/create')}
-      onImport={handleImport}
-    />
+    <div className="space-y-4">
+      {/* Filter Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+        <div className="flex flex-wrap gap-3 items-end">
+          {/* Search Keyword */}
+          <div className="flex-1 min-w-[300px]">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              <Search size={14} className="inline mr-1" />
+              Tìm kiếm
+            </label>
+            <input
+              type="text"
+              placeholder="Nhập tên, email hoặc mã người dùng..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            />
+          </div>
+
+          {/* Role Filter */}
+          <div className="w-48">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Vai trò
+            </label>
+            <select
+              value={roleId}
+              onChange={(e) => setRoleId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            >
+              <option value="">Tất cả</option>
+              <option value="1">Quản trị viên</option>
+              <option value="2">Giảng viên</option>
+              <option value="3">Sinh viên</option>
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          {hasActiveFilters && (
+            <button
+              onClick={handleClearFilters}
+              className="px-4 py-2 text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2"
+            >
+              <X size={16} />
+              Xóa bộ lọc
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Table with Loading State */}
+      {loading ? (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 flex flex-col items-center justify-center">
+          <Loader2 size={40} className="text-[#dd7323] animate-spin mb-3" />
+          <p className="text-slate-600">Đang tải danh sách người dùng...</p>
+        </div>
+      ) : (
+        <TableList 
+          title="Quản lý Người dùng"
+          subtitle="Danh sách tài khoản (Student, Lecturer, Admin) trong hệ thống."
+          data={users}
+          columns={columns}
+          onAdd={() => navigate('/admin/users-management/create')}
+          onImport={handleImport}
+        />
+      )}
+    </div>
   );
 };
 

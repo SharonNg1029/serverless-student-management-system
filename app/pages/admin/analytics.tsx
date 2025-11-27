@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { Download, Calendar, Filter } from 'lucide-react';
+import { Download, Calendar, Filter, Trophy, TrendingUp, Award, Search, Loader2, BookOpen } from 'lucide-react';
+import api from '../../utils/axios';
+import { toaster } from '../../components/ui/toaster';
 
 // --- Data ---
 const ENROLLMENT_DATA = [
@@ -32,7 +34,126 @@ const SYSTEM_LOAD = [
   { time: '18:00', load: 20 },
 ];
 
+// RankingDTO from backend
+interface RankingDTO {
+  student_id: number;
+  rank: number;
+  score: number;
+  recommendations: string;
+  student_name?: string;
+  student_email?: string;
+}
+
+interface ClassInfo {
+  id: number;
+  name: string;
+  subject_name?: string;
+}
+
 const AnalyticsPage: React.FC = () => {
+  // Ranking states
+  const [rankingData, setRankingData] = useState<RankingDTO[]>([]);
+  const [classes, setClasses] = useState<ClassInfo[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [loadingRanking, setLoadingRanking] = useState(false);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+
+  // Fetch classes for dropdown
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        setLoadingClasses(true);
+        const response = await api.get<{ results: any[] }>('/admin/classes', {
+          params: { status: 1 } // Only active classes
+        });
+        
+        const classesData: ClassInfo[] = response.data.results.map(c => ({
+          id: c.id,
+          name: c.name,
+          subject_name: c.subject_name
+        }));
+        
+        setClasses(classesData);
+      } catch (error: any) {
+        console.error('Error fetching classes:', error);
+        toaster.create({
+          title: 'Lỗi',
+          description: 'Không thể tải danh sách lớp học',
+          type: 'error'
+        });
+      } finally {
+        setLoadingClasses(false);
+      }
+    };
+
+    fetchClasses();
+  }, []);
+
+  // Fetch ranking data when class selected
+  const fetchRanking = async () => {
+    if (!selectedClassId) {
+      toaster.create({
+        title: 'Thiếu thông tin',
+        description: 'Vui lòng chọn lớp học để xem ranking',
+        type: 'warning'
+      });
+      return;
+    }
+
+    try {
+      setLoadingRanking(true);
+      const response = await api.get<RankingDTO[]>('/admin/ranking', {
+        params: { class_id: selectedClassId }
+      });
+      
+      setRankingData(response.data);
+      
+      if (response.data.length === 0) {
+        toaster.create({
+          title: 'Thông báo',
+          description: 'Chưa có dữ liệu điểm cho lớp này',
+          type: 'info'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error fetching ranking:', error);
+      toaster.create({
+        title: 'Lỗi',
+        description: error.response?.data?.message || 'Không thể tải ranking',
+        type: 'error'
+      });
+      setRankingData([]);
+    } finally {
+      setLoadingRanking(false);
+    }
+  };
+
+  // Auto-fetch ranking when class changes
+  useEffect(() => {
+    if (selectedClassId) {
+      fetchRanking();
+    } else {
+      setRankingData([]);
+    }
+  }, [selectedClassId]);
+
+  // Get medal icon for top 3
+  const getMedalIcon = (rank: number) => {
+    if (rank === 1) return <Trophy className="text-yellow-500" size={20} />;
+    if (rank === 2) return <Trophy className="text-gray-400" size={20} />;
+    if (rank === 3) return <Trophy className="text-amber-600" size={20} />;
+    return null;
+  };
+
+  // Get score color
+  const getScoreColor = (score: number) => {
+    if (score >= 8.5) return 'text-green-600 bg-green-50';
+    if (score >= 7.0) return 'text-blue-600 bg-blue-50';
+    if (score >= 5.5) return 'text-orange-600 bg-orange-50';
+    if (score >= 4.0) return 'text-amber-600 bg-amber-50';
+    return 'text-red-600 bg-red-50';
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-10">
       {/* Header */}
@@ -51,6 +172,169 @@ const AnalyticsPage: React.FC = () => {
             <span>Xuất Báo cáo PDF</span>
           </button>
         </div>
+      </div>
+
+      {/* Ranking Section - New Feature */}
+      <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl shadow-sm border border-orange-100 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="bg-[#dd7323] p-2 rounded-lg">
+            <Trophy size={24} className="text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Xếp hạng theo Lớp</h2>
+            <p className="text-sm text-slate-600">Xem ranking và gợi ý cải thiện cho học sinh trong lớp</p>
+          </div>
+        </div>
+
+        {/* Class Selector */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              <BookOpen size={14} className="inline mr-1" />
+              Chọn lớp học (bắt buộc)
+            </label>
+            <select
+              value={selectedClassId}
+              onChange={(e) => setSelectedClassId(e.target.value)}
+              disabled={loadingClasses}
+              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">-- Chọn lớp học --</option>
+              {classes.map(cls => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.name} {cls.subject_name ? `(${cls.subject_name})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={fetchRanking}
+            disabled={!selectedClassId || loadingRanking}
+            className="mt-7 flex items-center gap-2 px-6 py-2.5 bg-[#dd7323] text-white font-medium rounded-lg hover:bg-[#c2621a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingRanking ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Đang tải...
+              </>
+            ) : (
+              <>
+                <Search size={18} />
+                Xem Ranking
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Ranking Table */}
+        {rankingData.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-4">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider w-20">
+                      Hạng
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Sinh viên
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider w-32">
+                      Điểm TB
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Gợi ý từ AI
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {rankingData.map((student) => (
+                    <tr 
+                      key={student.student_id} 
+                      className={`hover:bg-slate-50 transition-colors ${student.rank <= 3 ? 'bg-orange-50/30' : ''}`}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {getMedalIcon(student.rank)}
+                          <span className={`font-bold ${student.rank <= 3 ? 'text-lg' : 'text-slate-700'}`}>
+                            #{student.rank}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-slate-900">
+                            {student.student_name || `Student ID: ${student.student_id}`}
+                          </span>
+                          {student.student_email && (
+                            <span className="text-xs text-slate-500">{student.student_email}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-center">
+                          <span className={`inline-flex px-3 py-1.5 text-sm font-bold rounded-lg ${getScoreColor(student.score)}`}>
+                            {student.score.toFixed(2)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-start gap-2">
+                          <TrendingUp size={16} className="text-[#dd7323] mt-0.5 flex-shrink-0" />
+                          <span className="text-sm text-slate-700">{student.recommendations}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Stats Footer */}
+            <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <div className="text-sm text-slate-600">
+                Hiển thị <span className="font-semibold text-slate-900">{rankingData.length}</span> sinh viên
+              </div>
+              {rankingData.length > 0 && (
+                <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span>Giỏi: {rankingData.filter(s => s.score >= 8.5).length}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span>Khá: {rankingData.filter(s => s.score >= 7.0 && s.score < 8.5).length}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                    <span>TB: {rankingData.filter(s => s.score >= 5.5 && s.score < 7.0).length}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <span>Yếu: {rankingData.filter(s => s.score < 5.5).length}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!selectedClassId && !loadingRanking && (
+          <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 p-12 text-center">
+            <Award size={48} className="mx-auto text-slate-300 mb-3" />
+            <p className="text-slate-500 font-medium">Chọn lớp học để xem ranking</p>
+            <p className="text-slate-400 text-sm mt-1">Hệ thống sẽ tính toán điểm tổng kết và gợi ý cải thiện</p>
+          </div>
+        )}
+
+        {selectedClassId && !loadingRanking && rankingData.length === 0 && (
+          <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 p-12 text-center">
+            <Award size={48} className="mx-auto text-slate-300 mb-3" />
+            <p className="text-slate-500 font-medium">Chưa có dữ liệu điểm</p>
+            <p className="text-slate-400 text-sm mt-1">Lớp này chưa có sinh viên hoặc chưa có điểm</p>
+          </div>
+        )}
       </div>
 
       {/* Top Cards */}

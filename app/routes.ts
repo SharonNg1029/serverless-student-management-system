@@ -24,12 +24,12 @@ export default [
         route("admin/users-management/edit/:userId", "./pages/admin/users-management/edit.tsx"),
         
         route("admin/subjects-management/list", "./pages/admin/subjects-management/list.tsx"),
-        route("admin/subjects-management/form", "./pages/admin/subjects-management/form.tsx", { id: "admin-subjects-create" }),
-        route("admin/subjects-management/edit/:subjectId", "./pages/admin/subjects-management/form.tsx", { id: "admin-subjects-edit" }),
+        route("admin/subjects-management/create", "./pages/admin/subjects-management/create.tsx"),
+        route("admin/subjects-management/edit/:subjectId", "./pages/admin/subjects-management/edit.tsx"),
         
         route("admin/classes-management/list", "./pages/admin/classes-management/list.tsx"),
-        route("admin/classes-management/form", "./pages/admin/classes-management/form.tsx", { id: "admin-classes-create" }),
-        route("admin/classes-management/edit/:classId", "./pages/admin/classes-management/form.tsx", { id: "admin-classes-edit" }),
+        route("admin/classes-management/create", "./pages/admin/classes-management/create.tsx"),
+        route("admin/classes-management/edit/:classId", "./pages/admin/classes-management/edit.tsx"),
       ]),
       
       // User routes with UserLayout (Student, Lecturer, Common)

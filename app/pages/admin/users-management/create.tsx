@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, ArrowLeft, UserPlus, Calendar } from 'lucide-react';
-import type { UserEntity } from '../../../types';
+import { Save, ArrowLeft, UserPlus, Calendar, Eye, EyeOff } from 'lucide-react';
+import type { UserEntity, RegisterRequest, RegisterResponse } from '../../../types';
+import api from '../../../utils/axios';
+import { toaster } from '../../../components/ui/toaster';
 
 const UserCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -13,13 +15,106 @@ const UserCreate: React.FC = () => {
     date_of_birth: '',
     status: 1
   });
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Creating user payload:', formData);
-    // TODO: Call API create user (Cognito + DB)
-    alert('Đã tạo người dùng thành công!');
-    navigate('/admin/users-management/list');
+    
+    // Validation
+    if (!formData.name || !formData.email || !formData.codeUser || !formData.date_of_birth) {
+      toaster.create({
+        title: 'Lỗi',
+        description: 'Vui lòng điền đầy đủ thông tin bắt buộc!',
+        type: 'error',
+        duration: 3000
+      });
+      return;
+    }
+
+    if (!password || password.length < 8) {
+      toaster.create({
+        title: 'Lỗi',
+        description: 'Mật khẩu phải có ít nhất 8 ký tự!',
+        type: 'error',
+        duration: 3000
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toaster.create({
+        title: 'Lỗi',
+        description: 'Mật khẩu xác nhận không khớp!',
+        type: 'error',
+        duration: 3000
+      });
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toaster.create({
+        title: 'Lỗi',
+        description: 'Email không hợp lệ!',
+        type: 'error',
+        duration: 3000
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Prepare payload theo API spec
+      const payload: RegisterRequest = {
+        email: formData.email,
+        password: password,
+        role_id: formData.role_id!,
+        codeUser: formData.codeUser,
+        date_of_birth: formData.date_of_birth!,
+        name: formData.name,
+        status: formData.status
+      };
+
+      console.log('Creating user with payload:', payload);
+      
+      // Call API POST /auth/register
+      const response = await api.post<RegisterResponse>('/auth/register', payload);
+      
+      console.log('Register response:', response.data);
+      
+      if (response.data && (response.data.message || response.data.userId)) {
+        toaster.create({
+          title: 'Thành công',
+          description: response.data.message || 'Tạo người dùng thành công!',
+          type: 'success',
+          duration: 2000
+        });
+        setTimeout(() => {
+          navigate('/admin/users-management/list');
+        }, 1500);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.error
+        || error.message 
+        || 'Không thể tạo người dùng. Vui lòng thử lại!';
+      toaster.create({
+        title: 'Lỗi',
+        description: errorMessage,
+        type: 'error',
+        duration: 3000
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -119,7 +214,54 @@ const UserCreate: React.FC = () => {
                 onChange={e => setFormData({...formData, email: e.target.value})}
                 placeholder="email@example.com"
               />
-              <p className="text-xs text-slate-400 mt-2">Mật khẩu mặc định sẽ được gửi qua email này.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Mật khẩu</label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  className="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#dd7323]/20 focus:border-[#dd7323] outline-none transition-all"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Ít nhất 8 ký tự"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Tối thiểu 8 ký tự</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Xác nhận mật khẩu</label>
+              <div className="relative">
+                <input 
+                  type={showConfirmPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  className="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#dd7323]/20 focus:border-[#dd7323] outline-none transition-all"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Nhập lại mật khẩu"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-xs text-red-500 mt-1">Mật khẩu không khớp</p>
+              )}
             </div>
             
             <div className="md:col-span-2">
@@ -152,10 +294,20 @@ const UserCreate: React.FC = () => {
             </button>
             <button 
               type="submit" 
-              className="flex items-center gap-2 px-6 py-2.5 bg-[#dd7323] text-white font-bold rounded-xl hover:bg-[#c2621a] transition-all shadow-lg shadow-orange-200"
+              disabled={isLoading}
+              className="flex items-center gap-2 px-6 py-2.5 bg-[#dd7323] text-white font-bold rounded-xl hover:bg-[#c2621a] transition-all shadow-lg shadow-orange-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save size={18} />
-              <span>Tạo người dùng</span>
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Đang tạo...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  <span>Tạo người dùng</span>
+                </>
+              )}
             </button>
           </div>
         </form>
