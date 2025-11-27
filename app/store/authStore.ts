@@ -16,6 +16,7 @@ interface AuthState {
   
   // Actions
   loginWithCognito: (email: string, password: string) => Promise<{ requireNewPassword?: boolean }>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   confirmNewPassword: (newPassword: string) => Promise<void>;
   logoutFromCognito: () => Promise<void>;
   refreshSession: () => Promise<string | null>;
@@ -252,6 +253,89 @@ export const useAuthStore = create<AuthState>()(
           set({
             error: errorMessage,
             isLoading: false,
+          });
+          throw error;
+        }
+      },
+
+      // Login with Google
+      loginWithGoogle: async (credential: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          
+          // Decode JWT token từ Google để lấy email
+          const payload = JSON.parse(atob(credential.split('.')[1]));
+          const googleEmail = payload.email;
+          
+          console.log('Google Login - Email:', googleEmail);
+          
+          // Gọi API backend để xác thực Google token và lấy thông tin user
+          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+          
+          const response = await fetch(`${apiBaseUrl}/auth/google`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              credential: credential,
+              email: googleEmail,
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+              errorData.message || 
+              errorData.error || 
+              'Đăng nhập thất bại. Email này chưa được đăng ký trong hệ thống.'
+            );
+          }
+          
+          const data = await response.json();
+          
+          // Kiểm tra response data
+          if (!data.user) {
+            throw new Error('Không tìm thấy thông tin người dùng');
+          }
+          
+          // Map response data to User object
+          const userData: User = {
+            id: data.user.id || data.user.userId || payload.sub,
+            username: data.user.username || googleEmail.split('@')[0],
+            email: data.user.email || googleEmail,
+            fullName: data.user.fullName || data.user.fullname || payload.name || googleEmail,
+            role: (data.user.role as 'Student' | 'Lecturer' | 'Admin') || 'Student',
+            token: data.accessToken || data.token || credential,
+            avatar: data.user.avatar || payload.picture || '',
+            phone: data.user.phone || '',
+            isEmailVerified: data.user.isEmailVerified ?? payload.email_verified ?? true,
+            lastLogin: new Date().toISOString(),
+            loginMethod: 'google',
+            createdAt: data.user.createdAt || new Date().toISOString(),
+            updatedAt: data.user.updatedAt || new Date().toISOString(),
+          };
+          
+          console.log('Google Login Success - User:', userData);
+          
+          // Lưu vào store
+          set({
+            user: userData,
+            accessToken: data.accessToken || data.token || credential,
+            refreshToken: data.refreshToken || null,
+            idToken: credential,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+            pendingSignIn: false,
+          });
+        } catch (error: any) {
+          console.error('Google Login Error:', error);
+          const errorMessage = error.message || 'Đăng nhập Google thất bại';
+          set({
+            error: errorMessage,
+            isLoading: false,
+            isAuthenticated: false,
           });
           throw error;
         }

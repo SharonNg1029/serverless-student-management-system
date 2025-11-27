@@ -44,6 +44,22 @@ export interface LoginResponse {
   updatedAt?: string;
 }
 
+// Register API types
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  role_id: number; // 1=Admin, 2=Lecturer, 3=Student
+  codeUser: string; // Mã giáo viên hoặc sinh viên
+  date_of_birth: string; // Format: YYYY-MM-DD
+  name?: string; // Họ tên (optional)
+  status?: number; // 0=Inactive, 1=Active (optional)
+}
+
+export interface RegisterResponse {
+  message: string;
+  userId: number;
+}
+
 // ============================================
 // DATABASE ENTITY TYPES
 // ============================================
@@ -69,6 +85,30 @@ export interface Subject {
   department: string;
   description?: string;
   status: number; // 0: Đóng, 1: Đang mở
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Subject API types
+export interface CreateSubjectRequest {
+  codeSubject: string; // required, unique
+  name: string; // required
+  credits: number; // required
+  description?: string; // optional
+  department?: string; // optional
+  status?: number; // default 1
+}
+
+export interface SubjectDTO {
+  id: number;
+  codeSubject: string;
+  name: string;
+  credits: number;
+  description?: string;
+  department?: string;
+  status: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Class {
