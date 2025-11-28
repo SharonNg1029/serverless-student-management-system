@@ -1,18 +1,14 @@
 import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router'
-import { createToaster, Toaster } from '@chakra-ui/react'
 import { useAuthStore } from '../../store/authStore'
+import { toaster } from '../../components/ui/toaster'
+import GoogleSignInButton from '../../components/common/GoogleSignInButton'
 import '../../style/login.css'
-
-const toaster = createToaster({
-  placement: 'top-end',
-  pauseOnPageIdle: true,
-})
 
 export default function LoginRoute() {
   const navigate = useNavigate()
-  const { loginWithCognito, confirmNewPassword, setLoading, isLoading } = useAuthStore()
+  const { loginWithCognito, loginWithGoogle, confirmNewPassword, setLoading, isLoading } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -21,44 +17,60 @@ export default function LoginRoute() {
   const [localError, setLocalError] = useState<string | null>(null)
   const [requireNewPassword, setRequireNewPassword] = useState(false)
 
+  const getRedirectPathByRole = (role: string): string => {
+    switch (role) {
+      case 'Admin':
+        return '/admin/dashboard';
+      case 'Lecturer':
+        return '/lecturer/classes-management/list';
+      case 'Student':
+        return '/home';
+      default:
+        return '/home';
+    }
+  };
+
   const handleNormalLogin = async (values: { email: string; password: string }) => {
     try {
       setLoading(true);
       setLocalError(null);
-      
       // Login với Cognito
       const result = await loginWithCognito(values.email, values.password);
-      
       // Kiểm tra nếu cần đổi mật khẩu
       if (result?.requireNewPassword) {
         setRequireNewPassword(true);
         setLoading(false);
+        toaster.create({
+          title: 'Yêu cầu đổi mật khẩu',
+          description: 'Bạn cần đổi mật khẩu để tiếp tục.',
+          type: 'warning',
+          duration: 4000,
+          meta: { closable: true },
+        });
         return;
       }
-      
       // Đợi 100ms để Zustand persist lưu vào localStorage
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Hiển thị toast thành công
+      await new Promise(resolve => setTimeout(resolve, 100));    
       toaster.create({
         title: 'Đăng nhập thành công',
-        description: 'Chào mừng bạn quay trở lại!',
         type: 'success',
         duration: 3000,
+        meta: { closable: true },
       });
-      
-      // Redirect về home page sau khi đăng nhập thành công
-      navigate("/home", { replace: true });
+      // Lấy thông tin user từ store để xác định role
+      const { user } = useAuthStore.getState();
+      const redirectPath = user?.role ? getRedirectPathByRole(user.role) : '/home';
+      // Redirect dựa trên role
+      navigate(redirectPath, { replace: true });
     } catch (error: any) {
       const errorMessage = error.message || "Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.";
       setLocalError(errorMessage);
-      
-      // Hiển thị toast lỗi
       toaster.create({
         title: 'Đăng nhập thất bại',
         description: errorMessage,
         type: 'error',
         duration: 5000,
+        meta: { closable: true },
       });
     } finally {
       setLoading(false);
@@ -67,47 +79,58 @@ export default function LoginRoute() {
 
   const handleNewPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (newPasswordData.newPassword !== newPasswordData.confirmPassword) {
       setLocalError('Mật khẩu xác nhận không khớp!');
+      toaster.create({
+        title: 'Lỗi xác nhận mật khẩu',
+        description: 'Mật khẩu xác nhận không khớp!',
+        type: 'error',
+        duration: 4000,
+        meta: { closable: true },
+      });
       return;
     }
-
-    if (newPasswordData.newPassword.length < 8) {
-      setLocalError('Mật khẩu phải có ít nhất 8 ký tự!');
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!passwordRegex.test(newPasswordData.newPassword)) {
+      const msg = 'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và ký tự đặc biệt!';
+      setLocalError(msg);
+      toaster.create({
+        title: 'Mật khẩu không đủ mạnh',
+        description: msg,
+        type: 'warning',
+        duration: 4000,
+        meta: { closable: true },
+      });
       return;
     }
-
     try {
       setLoading(true);
       setLocalError(null);
-      
       // Xác nhận mật khẩu mới
       await confirmNewPassword(newPasswordData.newPassword);
-      
       // Đợi 100ms để Zustand persist lưu vào localStorage
       await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Hiển thị toast thành công
+      // Lấy thông tin user từ store để xác định role
+      const { user } = useAuthStore.getState();
+      const redirectPath = user?.role ? getRedirectPathByRole(user.role) : '/home';
       toaster.create({
         title: 'Đổi mật khẩu thành công',
         description: 'Mật khẩu của bạn đã được cập nhật!',
         type: 'success',
         duration: 3000,
+        meta: { closable: true },
       });
-      
-      // Redirect về home page sau khi đổi mật khẩu thành công
-      navigate("/home", { replace: true });
+      // Redirect dựa trên role sau khi đổi mật khẩu thành công
+      navigate(redirectPath, { replace: true });
     } catch (error: any) {
       const errorMessage = error.message || "Đổi mật khẩu thất bại. Vui lòng thử lại.";
       setLocalError(errorMessage);
-      
-      // Hiển thị toast lỗi
       toaster.create({
         title: 'Đổi mật khẩu thất bại',
         description: errorMessage,
         type: 'error',
         duration: 5000,
+        meta: { closable: true },
       });
     } finally {
       setLoading(false);
@@ -123,27 +146,62 @@ export default function LoginRoute() {
     navigate('/auth/reset-password')
   }
 
+  const handleGoogleSuccess = async (credential: string) => {
+    try {
+      setLocalError(null);
+      
+      // Gọi loginWithGoogle từ authStore
+      await loginWithGoogle(credential);
+      
+      // Lấy thông tin user từ store sau khi login
+      const { user } = useAuthStore.getState();
+      
+      toaster.create({
+        title: 'Đăng nhập Google thành công',
+        description: `Xin chào, ${user?.fullName}!`,
+        type: 'success',
+        duration: 3000,
+      });
+
+      // Redirect dựa trên role
+      const redirectPath = user?.role ? getRedirectPathByRole(user.role) : '/home';
+      
+      // Đợi một chút để toast hiển thị
+      await new Promise(resolve => setTimeout(resolve, 500));
+      navigate(redirectPath, { replace: true });
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      setLocalError(error.message || 'Đăng nhập Google thất bại');
+      toaster.create({
+        title: 'Đăng nhập Google thất bại',
+        description: error.message || 'Có lỗi xảy ra khi đăng nhập',
+        type: 'error',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleGoogleError = () => {
+    toaster.create({
+      title: 'Đăng nhập Google thất bại',
+      description: 'Không thể kết nối với Google',
+      type: 'error',
+      duration: 5000,
+    });
+  };
+
   return (
-    <>
-      <Toaster toaster={toaster}>
-        {(toast) => (
-          <div>
-            <strong>{toast.title}</strong>
-            <p>{toast.description}</p>
-          </div>
-        )}
-      </Toaster>
-      <div className="login-container">
-        <div className="login-wrapper">
-          <div className="login-header">
-            <div className="login-brand">
-            <img 
-              src="/Logo_AWS_FCJ.png" 
-              alt="LMS FCJ Logo" 
-              className="login-logo"
-            />
-          </div>
+    <div className="login-container">
+      <div className="login-wrapper">
+        <div className="login-header">
+          <div className="login-brand">
+          <img 
+            src="/Logo_AWS_FCJ.png" 
+            alt="LMS FCJ Logo" 
+            className="login-logo"
+          />
         </div>
+      </div>
 
         <div className="login-body">
           {!requireNewPassword ? (
@@ -215,6 +273,17 @@ export default function LoginRoute() {
               >
                 {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
               </button>
+
+              <div className="divider">
+                <span>Hoặc</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+                <GoogleSignInButton 
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                />
+              </div>
             </form>
           ) : (
             <form onSubmit={handleNewPasswordSubmit} className="login-form">
@@ -227,7 +296,7 @@ export default function LoginRoute() {
                   <input
                     id="newPassword"
                     type={showNewPassword ? 'text' : 'password'}
-                    placeholder="Nhập mật khẩu mới (tối thiểu 8 ký tự)"
+                    placeholder="Mật khẩu mới (8+ ký tự, hoa, thường, đặc biệt)"
                     value={newPasswordData.newPassword}
                     onChange={(e) => setNewPasswordData({ ...newPasswordData, newPassword: e.target.value })}
                     autoComplete="new-password"
@@ -305,6 +374,5 @@ export default function LoginRoute() {
         </div>
       </div>
     </div>
-    </>
   )
 }

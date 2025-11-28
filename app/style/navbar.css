@@ -1,12 +1,17 @@
 /* Updated navbar with modern design: dark blue background (#293548), white text, and orange hover (#e38214) */
+.navbar-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+}
+
 .navbar {
   background-color: #293548;
   padding: 0.75rem 0;
   border-bottom: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+  width: 100%;
 }
 
 .navbar-container {
