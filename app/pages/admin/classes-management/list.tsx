@@ -1,124 +1,369 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import TableList, { type Column } from '../../../components/common/TableList';
+import { Calendar, User, CheckCircle, Clock, Edit, Key, Search, X, Loader2, Trash2 } from 'lucide-react';
+import type { Class } from '../../../types';
+import api from '../../../utils/axios';
+import { toaster } from '../../../components/ui/toaster';
 
-interface Class {
-  id: string
-  name: string
-  code: string
-  subjectId: string
-  subjectName: string
-  lecturerId: string
-  lecturerName: string
-  capacity: number
-  enrolled: number
-  schedule: string
-  createdAt: string
+// ClassDTO from backend
+interface ClassDTO {
+  id: number;
+  subject_id: number;
+  teacher_id?: number;
+  name: string;
+  password: string;
+  semester: string;
+  academic_year?: string;
+  year?: number;
+  student_count?: number;
+  status: number;
+  description?: string;
+  subjectName?: string;
+  lecturerName?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export default function ClassesListRoute() {
-  const navigate = useNavigate()
-  const [classes, setClasses] = useState<Class[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [loading, setLoading] = useState(false)
+const ClassesList: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // States for data and loading
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  
+  // States for filters
+  const [keyword, setKeyword] = useState<string>('');
+  const [subjectId, setSubjectId] = useState<string>('');
+  const [teacherId, setTeacherId] = useState<string>('');
+  const [status, setStatus] = useState<string>('');
+  
+  // Debounced keyword for API calls
+  const [debouncedKeyword, setDebouncedKeyword] = useState<string>('');
 
+  // Debounce keyword input (wait 500ms after user stops typing)
   useEffect(() => {
-    fetchClasses()
-  }, [])
+    const timer = setTimeout(() => {
+      setDebouncedKeyword(keyword);
+    }, 500);
 
+    return () => clearTimeout(timer);
+  }, [keyword]);
+
+  // Fetch classes from API
   const fetchClasses = async () => {
-    setLoading(true)
     try {
-      // TODO: Fetch classes from API/Lambda
-    } catch (error) {
-      console.error('Failed to fetch classes:', error)
+      setLoading(true);
+      
+      // Build query params
+      const params: Record<string, string> = {};
+      if (subjectId) params.subject_id = subjectId;
+      if (teacherId) params.teacher_id = teacherId;
+      if (debouncedKeyword.trim()) params.keyword = debouncedKeyword.trim();
+      if (status !== '') params.status = status;
+      
+      const response = await api.get<{ results: ClassDTO[] }>('/admin/classes', { params });
+      
+      // Transform ClassDTO to Class format
+      const transformedClasses: Class[] = response.data.results.map((dto) => ({
+        id: dto.id,
+        subject_id: dto.subject_id,
+        subjectId: dto.subject_id,
+        teacher_id: dto.teacher_id,
+        lecturerId: dto.teacher_id,
+        name: dto.name,
+        password: dto.password,
+        semester: dto.semester,
+        academic_year: dto.academic_year || dto.year?.toString() || '',
+        year: dto.year,
+        student_count: dto.student_count || 0,
+        status: dto.status,
+        description: dto.description,
+        subjectName: dto.subjectName || 'N/A',
+        lecturerName: dto.lecturerName || 'N/A',
+        classCode: `CLS${dto.id.toString().padStart(3, '0')}`
+      }));
+      
+      setClasses(transformedClasses);
+      
+    } catch (error: any) {
+      console.error('Error fetching classes:', error);
+      toaster.create({
+        title: 'Lỗi tải dữ liệu',
+        description: error.response?.data?.message || 'Không thể tải danh sách lớp học',
+        type: 'error'
+      });
+      setClasses([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const handleDelete = async (classId: string) => {
-    if (!confirm('Bạn có chắc muốn xóa lớp học này?')) return
+  // Load data on mount and when filters change
+  useEffect(() => {
+    fetchClasses();
+  }, [debouncedKeyword, subjectId, teacherId, status]);
+
+  // Handle clear filters
+  const handleClearFilters = () => {
+    setKeyword('');
+    setSubjectId('');
+    setTeacherId('');
+    setStatus('');
+  };
+
+  // Check if any filter is active
+  const hasActiveFilters = keyword || subjectId || teacherId || status !== '';
+
+  // Handle delete class (soft delete - change status to 0)
+  const handleDeleteClass = async (classItem: Class) => {
+    // Confirmation dialog
+    const confirmMessage = `Bạn có chắc muốn đóng lớp học "${classItem.name}" - ${classItem.subjectName}?\n\nLưu ý: Lớp học sẽ được đánh dấu là "Đã đóng" (status = 0) và không còn hoạt động.`;
     
-    try {
-      // TODO: Delete class via API/Lambda
-      console.log('Deleting class:', classId)
-      fetchClasses()
-    } catch (error) {
-      console.error('Failed to delete class:', error)
+    if (!window.confirm(confirmMessage)) {
+      return;
     }
-  }
 
-  return (
-    <div className="classes-list-container">
-      <div className="page-header">
-        <h1>Quản lý lớp học</h1>
-        <button 
-          className="btn-primary"
-          onClick={() => navigate('/admin/classes-management/form')}
-        >
-          Thêm lớp học
-        </button>
-      </div>
+    try {
+      // Call DELETE API - soft delete by setting status = 0
+      await api.delete(`/admin/classes/${classItem.id}`);
+      
+      toaster.create({
+        title: 'Thành công',
+        description: `Đã đóng lớp học "${classItem.name}" thành công!`,
+        type: 'success'
+      });
 
-      <div className="filters-section">
-        <input
-          type="text"
-          placeholder="Tìm kiếm theo tên, mã lớp..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
-      </div>
+      // Refresh the list
+      fetchClasses();
+      
+    } catch (error: any) {
+      console.error('Error deleting class:', error);
+      
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.error
+        || error.message;
+      
+      if (error.response?.status === 404) {
+        toaster.create({
+          title: 'Lỗi',
+          description: 'Lớp học không tồn tại!',
+          type: 'error'
+        });
+      } else if (error.response?.status === 403) {
+        toaster.create({
+          title: 'Lỗi',
+          description: 'Bạn không có quyền đóng lớp học này!',
+          type: 'error'
+        });
+      } else if (error.response?.status === 409) {
+        toaster.create({
+          title: 'Lỗi',
+          description: 'Không thể đóng lớp học đang có sinh viên tham gia!',
+          type: 'error'
+        });
+      } else {
+        toaster.create({
+          title: 'Lỗi',
+          description: errorMessage || 'Không thể đóng lớp học. Vui lòng thử lại!',
+          type: 'error'
+        });
+      }
+    }
+  };
 
-      {loading ? (
-        <div className="loading">Đang tải...</div>
-      ) : (
-        <div className="classes-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Mã lớp</th>
-                <th>Tên lớp</th>
-                <th>Môn học</th>
-                <th>Giảng viên</th>
-                <th>Sĩ số</th>
-                <th>Lịch học</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {classes.map((cls) => (
-                <tr key={cls.id}>
-                  <td>{cls.code}</td>
-                  <td>{cls.name}</td>
-                  <td>{cls.subjectName}</td>
-                  <td>{cls.lecturerName}</td>
-                  <td>{cls.enrolled}/{cls.capacity}</td>
-                  <td>{cls.schedule}</td>
-                  <td>
-                    <button 
-                      onClick={() => navigate(`/admin/classes-management/form/${cls.id}`)}
-                      className="btn-edit"
-                    >
-                      Sửa
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(cls.id)}
-                      className="btn-delete"
-                    >
-                      Xóa
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+  const columns: Column<Class>[] = [
+    {
+      header: 'Tên lớp / Học phần',
+      accessor: 'name',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-[#293548] flex items-center gap-2">
+            {row.name}
+            {row.password && (
+               <span className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded border border-slate-200 flex items-center gap-0.5" title="Passcode">
+                 <Key size={8} /> {row.password}
+               </span>
+            )}
+          </div>
+          <div className="text-xs text-slate-500 font-semibold">{row.subjectName}</div>
+        </div>
+      )
+    },
+    {
+      header: 'Giảng viên',
+      accessor: 'lecturerName',
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+            <User size={12} />
+          </div>
+          <span className="text-slate-700 text-sm">{row.lecturerName}</span>
+        </div>
+      )
+    },
+    {
+      header: 'Học kỳ',
+      accessor: 'semester',
+      render: (row) => (
+        <div className="flex flex-col gap-1 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+            <Calendar size={12} className="text-[#d97b2a]" />
+            HK{row.semester} / {row.academic_year}
+          </div>
+        </div>
+      )
+    },
+    {
+      header: 'Sĩ số',
+      accessor: 'student_count',
+      render: (row) => (
+        <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${(row.student_count ?? 0) >= 40 ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
+          {row.student_count ?? 0} / 40
+        </span>
+      )
+    },
+    {
+      header: 'Trạng thái',
+      accessor: 'status',
+      render: (row) => (
+        row.status === 1 ? (
+           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-emerald-600 bg-emerald-50">
+             <Clock size={12} /> Đang hoạt động
+           </span>
+        ) : (
+           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-slate-500 bg-slate-100">
+             <CheckCircle size={12} /> Đã đóng
+           </span>
+        )
+      )
+    },
+    {
+      header: 'Thao tác',
+      accessor: 'id',
+      render: (row) => (
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={() => navigate(`/admin/classes-management/edit/${row.id}`)}
+            className="p-2 text-slate-400 hover:text-[#dd7323] hover:bg-orange-50 rounded-lg transition-colors"
+            title="Chỉnh sửa"
+          >
+            <Edit size={16} />
+          </button>
           
-          {classes.length === 0 && (
-            <div className="no-data">Không có dữ liệu</div>
+          {row.status === 1 && (
+            <button 
+              onClick={() => handleDeleteClass(row)}
+              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Đóng lớp học"
+            >
+              <Trash2 size={16} />
+            </button>
           )}
         </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Filter Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+        <div className="flex flex-wrap gap-3 items-end">
+          {/* Search Keyword */}
+          <div className="flex-1 min-w-[250px]">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              <Search size={14} className="inline mr-1" />
+              Tìm kiếm
+            </label>
+            <input
+              type="text"
+              placeholder="Nhập tên lớp học..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            />
+          </div>
+
+          {/* Subject Filter */}
+          <div className="w-56">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Học phần
+            </label>
+            <select
+              value={subjectId}
+              onChange={(e) => setSubjectId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            >
+              <option value="">Tất cả học phần</option>
+              <option value="1">INT3306 - Web Development</option>
+              <option value="2">INT3401 - AI</option>
+            </select>
+          </div>
+
+          {/* Teacher Filter */}
+          <div className="w-56">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Giảng viên
+            </label>
+            <select
+              value={teacherId}
+              onChange={(e) => setTeacherId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            >
+              <option value="">Tất cả giảng viên</option>
+              <option value="1">GV001 - Nguyễn Văn An</option>
+              <option value="2">GV002 - Trần Thị B</option>
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="w-40">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Trạng thái
+            </label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            >
+              <option value="">Tất cả</option>
+              <option value="1">Đang hoạt động</option>
+              <option value="0">Đã đóng</option>
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          {hasActiveFilters && (
+            <button
+              onClick={handleClearFilters}
+              className="px-4 py-2 text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2"
+            >
+              <X size={16} />
+              Xóa bộ lọc
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Table with Loading State */}
+      {loading ? (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 flex flex-col items-center justify-center">
+          <Loader2 size={40} className="text-[#dd7323] animate-spin mb-3" />
+          <p className="text-slate-600">Đang tải danh sách lớp học...</p>
+        </div>
+      ) : (
+        <TableList 
+          title="Quản lý Lớp học"
+          subtitle="Danh sách các lớp học phần và mã tham gia (Passcode)."
+          data={classes}
+          columns={columns}
+          onAdd={() => navigate('/admin/classes-management/create')}
+        />
       )}
     </div>
-  )
-}
+  );
+};
+
+export default ClassesList;

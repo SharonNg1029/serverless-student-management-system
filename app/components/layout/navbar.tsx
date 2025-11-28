@@ -12,12 +12,6 @@ export default function Navbar() {
   const { user } = useAuthStore()
   const [isChatOpen, setIsChatOpen] = useState(false)
 
-  // Don't show navbar on authentication pages
-  const hideNavbarPaths = ['/login', '/auth/reset-password']
-  if (hideNavbarPaths.includes(location.pathname)) {
-    return null
-  }
-
   // Role-based navigation items
   const getNavItems = () => {
     if (!user) return []
@@ -58,7 +52,7 @@ export default function Navbar() {
   const navItems = getNavItems()
 
   return (
-    <>
+    <div className="navbar-wrapper">
       <nav className="navbar">
         <div className="navbar-container">
           <Link to="/home" className="navbar-logo">
@@ -124,7 +118,7 @@ export default function Navbar() {
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
       />
-    </>
+    </div>
   )
 }
 

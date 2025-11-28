@@ -1,15 +1,7 @@
-import { Link, useLocation } from 'react-router'
+import { Link } from 'react-router'
 import '../../style/footer.css'
 
 export default function Footer() {
-  const location = useLocation()
-
-  // Don't show footer on authentication pages
-  const hideFooterPaths = ['/login', '/auth/reset-password']
-  if (hideFooterPaths.includes(location.pathname)) {
-    return null
-  }
-
   return (
     <footer className="footer">
       <div className="footer-content">

@@ -3,8 +3,10 @@
   background: linear-gradient(135deg, #293548 0%, #1e2633 100%);
   color: white;
   padding: 3rem 1rem 1rem;
-  margin-top: 4rem;
+  margin-top: auto;
   border-top: 4px solid #e38214;
+  flex-shrink: 0;
+  width: 100%;
 }
 
 .footer-content {

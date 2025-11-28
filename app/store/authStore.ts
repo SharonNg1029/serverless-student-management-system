@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { signIn, signOut, fetchAuthSession, getCurrentUser, fetchUserAttributes, confirmSignIn, type ConfirmSignInOutput } from '@aws-amplify/auth';
-import type { User } from '../types/user';
+import type { User } from '../types';
+
 
 interface AuthState {
   user: User | null;
@@ -15,6 +16,7 @@ interface AuthState {
   
   // Actions
   loginWithCognito: (email: string, password: string) => Promise<{ requireNewPassword?: boolean }>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   confirmNewPassword: (newPassword: string) => Promise<void>;
   logoutFromCognito: () => Promise<void>;
   refreshSession: () => Promise<string | null>;
@@ -91,9 +93,47 @@ export const useAuthStore = create<AuthState>()(
             const currentUser = await getCurrentUser();
             const userAttributes = await fetchUserAttributes();
 
-            // Tạo User object
-            const customRole = userAttributes['custom:role'];
-            const roleValue = customRole ? (customRole as 'Student' | 'Lecturer' | 'Admin') : 'Student';
+            // Debug: Log để kiểm tra
+            console.log('=== DEBUG LOGIN ===');
+            console.log('User Attributes:', JSON.stringify(userAttributes, null, 2));
+            console.log('ID Token Payload:', JSON.stringify(tokens.idToken?.payload, null, 2));
+            console.log('All ID Token:', tokens.idToken);
+            
+            // Lấy role từ nhiều nguồn có thể:
+            // 1. ID Token payload (custom:role)
+            // 2. User attributes (custom:role hoặc custom:Role)
+            // 3. User attributes (role)
+            const idTokenRole = tokens.idToken?.payload['custom:role'];
+            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role;
+            let finalRole = idTokenRole || attrRole;
+            
+            console.log('ID Token Role:', idTokenRole);
+            console.log('Attributes Role:', attrRole);
+            console.log('Final Role:', finalRole);
+            
+            // If no role found in Cognito, try to fetch from DynamoDB
+            if (!finalRole) {
+              console.log('⚠️ No role in Cognito, fetching from DynamoDB...');
+              try {
+                const dynamoRole = await fetchUserRoleFromDynamoDB(
+                  currentUser.userId,
+                  tokens.accessToken.toString()
+                );
+                if (dynamoRole) {
+                  finalRole = dynamoRole;
+                  console.log('✅ Role from DynamoDB:', dynamoRole);
+                } else {
+                  console.log('⚠️ No role in DynamoDB either, using default');
+                }
+              } catch (error) {
+                console.error('Failed to fetch role from DynamoDB:', error);
+              }
+            }
+            
+            console.log('Final Role will be:', finalRole || 'Student (DEFAULT)');
+            
+            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student';
+            console.log('=== END DEBUG ===');
             
             const userData: User = {
               id: currentUser.userId,
@@ -115,7 +155,7 @@ export const useAuthStore = create<AuthState>()(
             set({
               user: userData,
               accessToken: tokens.accessToken.toString(),
-              refreshToken: tokens.refreshToken?.toString() || null,
+              refreshToken: null, // AWS Amplify v6 manages refresh token internally
               idToken: tokens.idToken?.toString() || null,
               isAuthenticated: true,
               isLoading: false,
@@ -165,8 +205,19 @@ export const useAuthStore = create<AuthState>()(
             const currentUser = await getCurrentUser();
             const userAttributes = await fetchUserAttributes();
             
-            const customRole = userAttributes['custom:role'];
-            const roleValue = customRole ? (customRole as 'Student' | 'Lecturer' | 'Admin') : 'Student';
+            // Debug: Log
+            console.log('=== DEBUG CONFIRM PASSWORD ===');
+            console.log('User Attributes:', userAttributes);
+            console.log('ID Token Payload:', tokens.idToken?.payload);
+            
+            // Lấy role từ ID Token hoặc attributes
+            const idTokenRole = tokens.idToken?.payload['custom:role'];
+            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role;
+            const finalRole = idTokenRole || attrRole;
+            
+            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student';
+            console.log('Final Role:', roleValue);
+            console.log('=== END DEBUG ===');
             
             const userData: User = {
               id: currentUser.userId,
@@ -187,7 +238,7 @@ export const useAuthStore = create<AuthState>()(
             set({
               user: userData,
               accessToken: tokens.accessToken.toString(),
-              refreshToken: tokens.refreshToken?.toString() || null,
+              refreshToken: null, // AWS Amplify v6 manages refresh token internally
               idToken: tokens.idToken?.toString() || null,
               isAuthenticated: true,
               isLoading: false,
@@ -202,6 +253,89 @@ export const useAuthStore = create<AuthState>()(
           set({
             error: errorMessage,
             isLoading: false,
+          });
+          throw error;
+        }
+      },
+
+      // Login with Google
+      loginWithGoogle: async (credential: string) => {
+        try {
+          set({ isLoading: true, error: null });
+          
+          // Decode JWT token từ Google để lấy email
+          const payload = JSON.parse(atob(credential.split('.')[1]));
+          const googleEmail = payload.email;
+          
+          console.log('Google Login - Email:', googleEmail);
+          
+          // Gọi API backend để xác thực Google token và lấy thông tin user
+          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+          
+          const response = await fetch(`${apiBaseUrl}/auth/google`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              credential: credential,
+              email: googleEmail,
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+              errorData.message || 
+              errorData.error || 
+              'Đăng nhập thất bại. Email này chưa được đăng ký trong hệ thống.'
+            );
+          }
+          
+          const data = await response.json();
+          
+          // Kiểm tra response data
+          if (!data.user) {
+            throw new Error('Không tìm thấy thông tin người dùng');
+          }
+          
+          // Map response data to User object
+          const userData: User = {
+            id: data.user.id || data.user.userId || payload.sub,
+            username: data.user.username || googleEmail.split('@')[0],
+            email: data.user.email || googleEmail,
+            fullName: data.user.fullName || data.user.fullname || payload.name || googleEmail,
+            role: (data.user.role as 'Student' | 'Lecturer' | 'Admin') || 'Student',
+            token: data.accessToken || data.token || credential,
+            avatar: data.user.avatar || payload.picture || '',
+            phone: data.user.phone || '',
+            isEmailVerified: data.user.isEmailVerified ?? payload.email_verified ?? true,
+            lastLogin: new Date().toISOString(),
+            loginMethod: 'google',
+            createdAt: data.user.createdAt || new Date().toISOString(),
+            updatedAt: data.user.updatedAt || new Date().toISOString(),
+          };
+          
+          console.log('Google Login Success - User:', userData);
+          
+          // Lưu vào store
+          set({
+            user: userData,
+            accessToken: data.accessToken || data.token || credential,
+            refreshToken: data.refreshToken || null,
+            idToken: credential,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+            pendingSignIn: false,
+          });
+        } catch (error: any) {
+          console.error('Google Login Error:', error);
+          const errorMessage = error.message || 'Đăng nhập Google thất bại';
+          set({
+            error: errorMessage,
+            isLoading: false,
+            isAuthenticated: false,
           });
           throw error;
         }
@@ -242,7 +376,7 @@ export const useAuthStore = create<AuthState>()(
             
             set({
               accessToken,
-              refreshToken: tokens.refreshToken?.toString() || null,
+              refreshToken: null, // AWS Amplify v6 manages refresh token internally
               idToken: tokens.idToken?.toString() || null,
             });
             
@@ -268,12 +402,26 @@ export const useAuthStore = create<AuthState>()(
           if (currentUser && tokens?.accessToken) {
             const userAttributes = await fetchUserAttributes();
             
+            // Debug: Log
+            console.log('=== DEBUG CHECK AUTH ===');
+            console.log('User Attributes:', userAttributes);
+            console.log('ID Token Payload:', tokens.idToken?.payload);
+            
+            // Lấy role từ ID Token hoặc attributes
+            const idTokenRole = tokens.idToken?.payload['custom:role'];
+            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role;
+            const finalRole = idTokenRole || attrRole;
+            
+            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student';
+            console.log('Final Role:', roleValue);
+            console.log('=== END DEBUG ===');
+            
             const userData: User = {
               id: currentUser.userId,
               username: currentUser.username,
               email: userAttributes.email || '',
               fullName: userAttributes.name || userAttributes.email || '',
-              role: (userAttributes['custom:role'] as 'Student' | 'Lecturer' | 'Admin') || 'Student',
+              role: roleValue,
               token: tokens.accessToken.toString(),
               avatar: userAttributes.picture || '',
               phone: userAttributes.phone_number || '',
@@ -287,7 +435,7 @@ export const useAuthStore = create<AuthState>()(
             set({
               user: userData,
               accessToken: tokens.accessToken.toString(),
-              refreshToken: tokens.refreshToken?.toString() || null,
+              refreshToken: null, // AWS Amplify v6 manages refresh token internally
               idToken: tokens.idToken?.toString() || null,
               isAuthenticated: true,
             });
