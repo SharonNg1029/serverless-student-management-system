@@ -1,11 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { Download, Calendar, Filter, Trophy, TrendingUp, Award, Search, Loader2, BookOpen } from 'lucide-react';
+import { createListCollection, Button, Flex } from '@chakra-ui/react';
 import api from '../../utils/axios';
 import { toaster } from '../../components/ui/toaster';
+import {
+  ComboboxRoot,
+  ComboboxLabel,
+  ComboboxInput,
+  ComboboxTrigger,
+  ComboboxContent,
+  ComboboxItem,
+  ComboboxItemText,
+  ComboboxControl,
+  ComboboxClearTrigger
+} from '../../components/ui/combobox';
 
 // --- Data ---
 const ENROLLMENT_DATA = [
@@ -57,6 +69,16 @@ const AnalyticsPage: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [loadingRanking, setLoadingRanking] = useState(false);
   const [loadingClasses, setLoadingClasses] = useState(false);
+
+  // Create collection for Combobox
+  const classCollection = useMemo(() => {
+    return createListCollection({
+      items: classes.map(cls => ({
+        label: `${cls.name}${cls.subject_name ? ` (${cls.subject_name})` : ''}`,
+        value: cls.id.toString()
+      }))
+    });
+  }, [classes]);
 
   // Fetch classes for dropdown
   useEffect(() => {
@@ -187,43 +209,67 @@ const AnalyticsPage: React.FC = () => {
         </div>
 
         {/* Class Selector */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              <BookOpen size={14} className="inline mr-1" />
-              Chọn lớp học (bắt buộc)
-            </label>
-            <select
-              value={selectedClassId}
-              onChange={(e) => setSelectedClassId(e.target.value)}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            <BookOpen size={14} className="inline mr-1" />
+            Chọn lớp học (bắt buộc)
+          </label>
+
+          <Flex gap={0} w="full" >
+            <ComboboxRoot
+              collection={classCollection}
+              value={selectedClassId ? [selectedClassId] : []}
+              onValueChange={(details: any) => {
+                const newValue = details.value[0] || '';
+                setSelectedClassId(newValue);
+              }}
               disabled={loadingClasses}
-              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              width="full"
             >
-              <option value="">-- Chọn lớp học --</option>
-              {classes.map(cls => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.name} {cls.subject_name ? `(${cls.subject_name})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={fetchRanking}
-            disabled={!selectedClassId || loadingRanking}
-            className="mt-7 flex items-center gap-2 px-6 py-2.5 bg-[#dd7323] text-white font-medium rounded-lg hover:bg-[#c2621a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loadingRanking ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                Đang tải...
-              </>
-            ) : (
-              <>
-                <Search size={18} />
-                Xem Ranking
-              </>
-            )}
-          </button>
+              <ComboboxControl>
+                <ComboboxInput 
+                  placeholder="Tìm kiếm lớp học..."
+                  h="48px"
+                  w="full"
+                  borderLeftRadius="md"
+                  borderRightRadius="0"
+                  borderColor="slate.300"
+                  _hover={{ borderColor: 'slate.400' }}
+                  _focus={{ borderColor: '#dd7323', boxShadow: '0 0 0 1px #dd7323' }}
+                />
+                <ComboboxTrigger />
+                <ComboboxClearTrigger />
+              </ComboboxControl>
+
+              <ComboboxContent>
+                {classCollection.items.map((item) => (
+                  <ComboboxItem key={item.value} item={item}>
+                    <ComboboxItemText>{item.label}</ComboboxItemText>
+                  </ComboboxItem>
+                ))}
+              </ComboboxContent>
+            </ComboboxRoot>
+
+            <Button
+              onClick={fetchRanking}
+              disabled={!selectedClassId || loadingRanking}
+              loading={loadingRanking}
+              h="48px"
+              borderLeftRadius="0"
+              borderRightRadius="md"
+              bg="#dd7323"
+              color="white"
+              _hover={{ bg: '#c2621a' }}
+              fontWeight="medium"
+              px="6"
+              whiteSpace="nowrap"
+              flexShrink={0}
+              marginLeft="-1px"
+            >
+              <Search size={22} />
+              Xem Ranking
+            </Button>
+          </Flex>
         </div>
 
         {/* Ranking Table */}
