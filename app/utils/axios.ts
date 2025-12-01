@@ -3,7 +3,7 @@ import { fetchAuthSession } from '@aws-amplify/auth';
 import { toaster } from '../components/ui/toaster';
 
 // Cấu hình base URL - URL của API Gateway
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://your-api-gateway-url.execute-api.ap-southeast-1.amazonaws.com/prod';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Tạo axios instance
 const api: AxiosInstance = axios.create({

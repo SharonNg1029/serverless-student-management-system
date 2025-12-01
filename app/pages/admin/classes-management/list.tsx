@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import TableList, { type Column } from '../../../components/common/TableList';
 import { Calendar, User, CheckCircle, Clock, Edit, Key, Search, X, Loader2, Trash2 } from 'lucide-react';
 import type { Class } from '../../../types';
 import api from '../../../utils/axios';
 import { toaster } from '../../../components/ui/toaster';
+import { createListCollection, Select as ChakraSelect } from '@chakra-ui/react';
+import { SelectRoot, SelectTrigger, SelectValueText, SelectContent, SelectItem } from '../../../components/ui/select';
 
 // ClassDTO from backend
 interface ClassDTO {
@@ -175,20 +177,24 @@ const ClassesList: React.FC = () => {
 
   const columns: Column<Class>[] = [
     {
-      header: 'Tên lớp / Học phần',
+      header: 'Tên lớp',
       accessor: 'name',
       render: (row) => (
-        <div>
-          <div className="font-bold text-[#293548] flex items-center gap-2">
-            {row.name}
-            {row.password && (
-               <span className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded border border-slate-200 flex items-center gap-0.5" title="Passcode">
-                 <Key size={8} /> {row.password}
-               </span>
-            )}
-          </div>
-          <div className="text-xs text-slate-500 font-semibold">{row.subjectName}</div>
+        <div className="font-bold text-[#293548] flex items-center gap-2">
+          {row.name}
+          {row.password && (
+            <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 flex items-center gap-0.5" title="Mã tham gia">
+              <Key size={8} /> {row.password}
+            </span>
+          )}
         </div>
+      )
+    },
+    {
+      header: 'Học phần',
+      accessor: 'subjectName',
+      render: (row) => (
+        <span className="text-sm text-slate-700 font-medium">{row.subjectName}</span>
       )
     },
     {
@@ -207,11 +213,9 @@ const ClassesList: React.FC = () => {
       header: 'Học kỳ',
       accessor: 'semester',
       render: (row) => (
-        <div className="flex flex-col gap-1 text-xs">
-          <div className="flex items-center gap-1.5 text-slate-600 font-medium">
-            <Calendar size={12} className="text-[#d97b2a]" />
-            HK{row.semester} / {row.academic_year}
-          </div>
+        <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+          <Calendar size={12} className="text-[#d97b2a]" />
+          HK{row.semester} / {row.academic_year}
         </div>
       )
     },
@@ -229,13 +233,13 @@ const ClassesList: React.FC = () => {
       accessor: 'status',
       render: (row) => (
         row.status === 1 ? (
-           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-emerald-600 bg-emerald-50">
-             <Clock size={12} /> Đang hoạt động
-           </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-emerald-600 bg-emerald-50">
+            <Clock size={12} /> Đang hoạt động
+          </span>
         ) : (
-           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-slate-500 bg-slate-100">
-             <CheckCircle size={12} /> Đã đóng
-           </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-slate-500 bg-slate-100">
+            <CheckCircle size={12} /> Đã đóng
+          </span>
         )
       )
     },
@@ -291,15 +295,35 @@ const ClassesList: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Học phần
             </label>
-            <select
-              value={subjectId}
-              onChange={(e) => setSubjectId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            <SelectRoot
+              collection={createListCollection({
+                items: [
+                  { label: 'Tất cả học phần', value: '' },
+                  { label: 'INT3306 - Web Development', value: '1' },
+                  { label: 'INT3401 - AI', value: '2' }
+                ]
+              })}
+              value={subjectId ? [subjectId] : []}
+              onValueChange={(e: any) => setSubjectId(e.value[0] || '')}
+              size="sm"
+              variant="outline"
+              positioning={{ sameWidth: true }}
             >
-              <option value="">Tất cả học phần</option>
-              <option value="1">INT3306 - Web Development</option>
-              <option value="2">INT3401 - AI</option>
-            </select>
+              <SelectTrigger clearable>
+                <SelectValueText placeholder="Tất cả học phần" />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  { label: 'Tất cả học phần', value: '' },
+                  { label: 'INT3306 - Web Development', value: '1' },
+                  { label: 'INT3401 - AI', value: '2' }
+                ].map((item) => (
+                  <SelectItem key={item.value} item={item}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </SelectRoot>
           </div>
 
           {/* Teacher Filter */}
@@ -307,15 +331,35 @@ const ClassesList: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Giảng viên
             </label>
-            <select
-              value={teacherId}
-              onChange={(e) => setTeacherId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            <SelectRoot
+              collection={createListCollection({
+                items: [
+                  { label: 'Tất cả giảng viên', value: '' },
+                  { label: 'GV001 - Nguyễn Văn An', value: '1' },
+                  { label: 'GV002 - Trần Thị B', value: '2' }
+                ]
+              })}
+              value={teacherId ? [teacherId] : []}
+              onValueChange={(e: any) => setTeacherId(e.value[0] || '')}
+              size="sm"
+              variant="outline"
+              positioning={{ sameWidth: true }}
             >
-              <option value="">Tất cả giảng viên</option>
-              <option value="1">GV001 - Nguyễn Văn An</option>
-              <option value="2">GV002 - Trần Thị B</option>
-            </select>
+              <SelectTrigger clearable>
+                <SelectValueText placeholder="Tất cả giảng viên" />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  { label: 'Tất cả giảng viên', value: '' },
+                  { label: 'GV001 - Nguyễn Văn An', value: '1' },
+                  { label: 'GV002 - Trần Thị B', value: '2' }
+                ].map((item) => (
+                  <SelectItem key={item.value} item={item}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </SelectRoot>
           </div>
 
           {/* Status Filter */}
@@ -323,15 +367,35 @@ const ClassesList: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Trạng thái
             </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            <SelectRoot
+              collection={createListCollection({
+                items: [
+                  { label: 'Tất cả', value: '' },
+                  { label: 'Đang hoạt động', value: '1' },
+                  { label: 'Đã đóng', value: '0' }
+                ]
+              })}
+              value={status ? [status] : []}
+              onValueChange={(e: any) => setStatus(e.value[0] || '')}
+              size="sm"
+              variant="outline"
+              positioning={{ sameWidth: true }}
             >
-              <option value="">Tất cả</option>
-              <option value="1">Đang hoạt động</option>
-              <option value="0">Đã đóng</option>
-            </select>
+              <SelectTrigger clearable>
+                <SelectValueText placeholder="Tất cả" />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  { label: 'Tất cả', value: '' },
+                  { label: 'Đang hoạt động', value: '1' },
+                  { label: 'Đã đóng', value: '0' }
+                ].map((item) => (
+                  <SelectItem key={item.value} item={item}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </SelectRoot>
           </div>
 
           {/* Clear Filters Button */}
@@ -356,7 +420,7 @@ const ClassesList: React.FC = () => {
       ) : (
         <TableList 
           title="Quản lý Lớp học"
-          subtitle="Danh sách các lớp học phần và mã tham gia (Passcode)."
+          subtitle="Danh sách và thông tin các lớp học."
           data={classes}
           columns={columns}
           onAdd={() => navigate('/admin/classes-management/create')}

@@ -112,26 +112,26 @@ export interface SubjectDTO {
 }
 
 export interface Class {
-  id: number
-  classCode: string
-  subjectId: number
-  subject_id?: number
-  subjectName?: string
-  lecturerId: number
-  teacher_id?: number
-  lecturerName?: string
-  semester: string
-  year: number
-  academic_year?: string
-  name?: string
-  password?: string
-  student_count?: number
-  schedule?: string
-  room?: string
-  capacity?: number
-  enrolled?: number
-  description?: string
-  status: number // 0: Đóng, 1: Đang mở
+  id: number;
+  classCode: string;
+  subjectId: number;
+  subject_id?: number;
+  subjectName?: string;
+  lecturerId?: number;
+  teacher_id?: number;
+  lecturerName?: string;
+  semester: string;
+  year?: number;
+  academic_year?: string;
+  name?: string;
+  password?: string;
+  student_count?: number;
+  schedule?: string;
+  room?: string;
+  capacity?: number;
+  enrolled?: number;
+  description?: string;
+  status: number; // 0: Đóng, 1: Đang mở
 }
 
 export interface Assignment {

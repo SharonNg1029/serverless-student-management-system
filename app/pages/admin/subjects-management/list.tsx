@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import TableList, { type Column } from '../../../components/common/TableList';
-import { Edit, Book, Search, Filter, X, Loader2, Trash2 } from 'lucide-react';
+import { Edit, Book, Search, Filter, X, Loader2, Trash2, Calendar } from 'lucide-react';
 import type { Subject, SubjectDTO } from '../../../types';
 import api from '../../../utils/axios';
 import { toaster } from '../../../components/ui/toaster';
+import { createListCollection, Select as ChakraSelect } from '@chakra-ui/react';
+import { SelectRoot, SelectTrigger, SelectValueText, SelectContent, SelectItem } from '../../../components/ui/select';
 
 const SubjectsList: React.FC = () => {
   const navigate = useNavigate();
@@ -74,7 +76,7 @@ const SubjectsList: React.FC = () => {
       console.error('Error fetching subjects:', error);
       toaster.create({
         title: 'Lỗi tải dữ liệu',
-        description: error.response?.data?.message || 'Không thể tải danh sách học phần',
+        description: error.response?.data?.message || 'Không thể tải danh sách môn học',
         type: 'error'
       });
       setSubjects([]);
@@ -161,7 +163,7 @@ const SubjectsList: React.FC = () => {
   // Define table columns
   const columns: Column<Subject>[] = [
     {
-      header: 'Mã HP',
+      header: 'Mã môn học',
       accessor: 'codeSubject',
       render: (row) => (
         <span className="font-mono font-bold text-[#293548] px-2 py-1 bg-slate-100 rounded text-xs border border-slate-200">
@@ -170,7 +172,7 @@ const SubjectsList: React.FC = () => {
       )
     },
     {
-      header: 'Tên học phần',
+      header: 'Tên môn học',
       accessor: 'name',
       render: (row) => (
         <div className="flex items-center gap-2">
@@ -180,7 +182,7 @@ const SubjectsList: React.FC = () => {
       )
     },
     {
-      header: 'Số TC',
+      header: 'Số tín chỉ',
       accessor: 'credits',
       className: 'text-center',
       render: (row) => <div className="text-center font-bold text-slate-600">{row.credits}</div>
@@ -188,6 +190,19 @@ const SubjectsList: React.FC = () => {
     {
       header: 'Bộ môn / Khoa',
       accessor: 'department',
+      render: (row) => (
+        <span className="text-sm text-slate-600">{row.department || 'N/A'}</span>
+      )
+    },
+    {
+      header: 'Ngày tạo',
+      accessor: 'created_at',
+      render: (row) => (
+        <div className="flex items-center gap-1.5 text-xs text-slate-600">
+          <Calendar size={12} className="text-slate-400" />
+          <span>{row.created_at || 'N/A'}</span>
+        </div>
+      )
     },
     {
       header: 'Trạng thái',
@@ -250,16 +265,27 @@ const SubjectsList: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Bộ môn / Khoa
             </label>
-            <select
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            <SelectRoot
+              collection={createListCollection({
+                items: [{ label: 'Tất cả', value: '' }, ...departments.map(d => ({ label: d, value: d }))]
+              })}
+              value={department ? [department] : []}
+              onValueChange={(e: any) => setDepartment(e.value[0] || '')}
+              size="md"
+              variant="outline"
+              positioning={{ sameWidth: true }}
             >
-              <option value="">Tất cả</option>
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
+              <SelectTrigger clearable>
+                <SelectValueText placeholder="Tất cả" />
+              </SelectTrigger>
+              <SelectContent>
+                {[{ label: 'Tất cả', value: '' }, ...departments.map(d => ({ label: d, value: d }))].map((item) => (
+                  <SelectItem key={item.value} item={item}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </SelectRoot>
           </div>
 
           {/* Status Filter */}
@@ -267,15 +293,35 @@ const SubjectsList: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Trạng thái
             </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            <SelectRoot
+              collection={createListCollection({
+                items: [
+                  { label: 'Tất cả', value: '' },
+                  { label: 'Đang mở', value: '1' },
+                  { label: 'Đóng', value: '0' }
+                ]
+              })}
+              value={status ? [status] : []}
+              onValueChange={(e: any) => setStatus(e.value[0] || '')}
+              size="sm"
+              variant="outline"
+              positioning={{ sameWidth: true }}
             >
-              <option value="">Tất cả</option>
-              <option value="1">Đang mở</option>
-              <option value="0">Đóng</option>
-            </select>
+              <SelectTrigger clearable>
+                <SelectValueText placeholder="Tất cả" />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  { label: 'Tất cả', value: '' },
+                  { label: 'Đang mở', value: '1' },
+                  { label: 'Đóng', value: '0' }
+                ].map((item) => (
+                  <SelectItem key={item.value} item={item}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </SelectRoot>
           </div>
 
           {/* Clear Filters Button */}
@@ -295,16 +341,16 @@ const SubjectsList: React.FC = () => {
       {loading ? (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 flex flex-col items-center justify-center">
           <Loader2 size={40} className="text-[#dd7323] animate-spin mb-3" />
-          <p className="text-slate-600">Đang tải danh sách học phần...</p>
+          <p className="text-slate-600">Đang tải danh sách môn học...</p>
         </div>
       ) : (
         <TableList 
-          title="Quản lý Học phần"
-          subtitle="Danh sách các môn học trong chương trình đào tạo (Tổng quát)."
+          title="Quản lý Môn học"
+          subtitle="Danh sách các môn học."
           data={subjects}
           columns={columns}
           onAdd={() => navigate('/admin/subjects-management/create')}
-          onImport={() => alert('Import học phần')}
+          onImport={() => alert('Import môn học')}
         />
       )}
     </div>

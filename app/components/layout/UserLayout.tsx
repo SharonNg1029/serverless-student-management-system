@@ -9,9 +9,9 @@ import Footer from './footer';
  */
 const UserLayout: React.FC = () => {
   return (
-    <div className="layout">
+    <div className="layout min-h-screen flex flex-col">
       <Navbar />
-      <main className="layout-content">
+      <main className="layout-content flex-1">
         <div className="container">
           <Outlet />
         </div>

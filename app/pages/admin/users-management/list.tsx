@@ -6,6 +6,8 @@ import { Mail, UserCheck, UserX, Edit, Hash, Search, X, Loader2 } from 'lucide-r
 import type { UserEntity } from '../../../types';
 import api from '../../../utils/axios';
 import { toaster } from '../../../components/ui/toaster';
+import { createListCollection, Select as ChakraSelect } from '@chakra-ui/react';
+import { SelectRoot, SelectTrigger, SelectValueText, SelectContent, SelectItem } from '../../../components/ui/select';
 
 // Extended type for display with additional fields
 type UserDisplay = UserEntity & {
@@ -223,16 +225,37 @@ const UsersList: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Vai trò
             </label>
-            <select
-              value={roleId}
-              onChange={(e) => setRoleId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent"
+            <SelectRoot
+              collection={createListCollection({
+                items: [
+                  { label: 'Tất cả', value: '' },
+                  { label: 'Quản trị viên', value: '1' },
+                  { label: 'Giảng viên', value: '2' },
+                  { label: 'Sinh viên', value: '3' }
+                ]
+              })}
+              value={roleId ? [roleId] : []}
+              onValueChange={(e: any) => setRoleId(e.value[0] || '')}
+              size="sm"
+              variant="outline"
+              positioning={{ sameWidth: true }}
             >
-              <option value="">Tất cả</option>
-              <option value="1">Quản trị viên</option>
-              <option value="2">Giảng viên</option>
-              <option value="3">Sinh viên</option>
-            </select>
+              <SelectTrigger clearable>
+                <SelectValueText placeholder="Tất cả" />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  { label: 'Tất cả', value: '' },
+                  { label: 'Quản trị viên', value: '1' },
+                  { label: 'Giảng viên', value: '2' },
+                  { label: 'Sinh viên', value: '3' }
+                ].map((item) => (
+                  <SelectItem key={item.value} item={item}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </SelectRoot>
           </div>
 
           {/* Clear Filters Button */}
