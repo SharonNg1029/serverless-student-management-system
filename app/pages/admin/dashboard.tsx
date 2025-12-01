@@ -308,86 +308,8 @@ const AdminDashboard = () => {
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-3xl font-bold text-slate-800">12.5K</span>
                 <span className="text-xs text-slate-400 font-medium uppercase tracking-wide">Tổng SV</span>
-            <select className="text-sm border-none bg-slate-50 rounded-lg px-3 py-2 text-slate-600 outline-none focus:ring-2 focus:ring-orange-100 cursor-pointer font-medium hover:bg-slate-100 transition-colors">
-              <option>Học kỳ 1 - 2024</option>
-              <option>Học kỳ 2 - 2023</option>
-            </select>
-          </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={FACULTY_PERFORMANCE_DATA} barSize={48}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} 
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 12 }} 
-                  domain={[0, 4]}
-                />
-                <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-                  itemStyle={{ color: '#1e293b', fontWeight: 600 }}
-                  formatter={(value) => [value, 'GPA']}
-                />
-                <Bar 
-                  dataKey="score" 
-                  fill="#f59e0b" 
-                  radius={[8, 8, 0, 0]} 
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Donut Chart */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
-          <div className="mb-6">
-            <h3 className="text-lg font-bold text-slate-800">Phân loại học lực</h3>
-             <p className="text-xs text-slate-400">Tỷ lệ sinh viên theo xếp loại</p>
-          </div>
-          <div className="flex-1 min-h-[250px] relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={STUDENT_CLASSIFICATION_DATA}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={90}
-                  paddingAngle={4}
-                  dataKey="value"
-                  cornerRadius={6}
-                  stroke="none"
-                >
-                  {STUDENT_CLASSIFICATION_DATA.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-3xl font-bold text-slate-800">12.5K</span>
-                <span className="text-xs text-slate-400 font-medium uppercase tracking-wide">Tổng SV</span>
             </div>
           </div>
-          <div className="flex flex-wrap justify-center gap-3 mt-4">
-            {STUDENT_CLASSIFICATION_DATA.slice(0, 3).map((item) => (
-              <div key={item.name} className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></span>
-                <span className="text-xs text-slate-600 font-medium">{item.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
           <div className="flex flex-wrap justify-center gap-3 mt-4">
             {STUDENT_CLASSIFICATION_DATA.slice(0, 3).map((item) => (
               <div key={item.name} className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md">
