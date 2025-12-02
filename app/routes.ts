@@ -40,39 +40,10 @@ export default [
 
         route('lecturer/dashboard', './pages/lecturer/dashboard.tsx'),
 
-        // Lecturer routes
-        route('lecturer/classes-management/list', './pages/lecturer/classes-management/list.tsx'),
-        route('lecturer/classes-management/details/:classId', './pages/lecturer/classes-management/details.tsx'),
-        route('lecturer/classes-management/form', './pages/lecturer/classes-management/form.tsx', {
-          id: 'lecturer-classes-create'
-        }),
-        route('lecturer/classes-management/edit/:classId', './pages/lecturer/classes-management/form.tsx', {
-          id: 'lecturer-classes-edit'
-        }),
-
-        route('lecturer/assignments-management/list', './pages/lecturer/assignments-management/list.tsx'),
-        route('lecturer/assignments-management/form', './pages/lecturer/assignments-management/form.tsx', {
-          id: 'lecturer-assignments-create'
-        }),
-        route(
-          'lecturer/assignments-management/edit/:assignmentId',
-          './pages/lecturer/assignments-management/form.tsx',
-          { id: 'lecturer-assignments-edit' }
-        ),
-        route(
-          'lecturer/assignments-management/grade/:assignmentId',
-          './pages/lecturer/assignments-management/grade.tsx'
-        ),
-
-        route('lecturer/grades-management/list', './pages/lecturer/grades-management/list.tsx'),
-
-        route('lecturer/reports', './pages/lecturer/reports.tsx'),
-        route('lecturer/ranking-analyst', './pages/lecturer/ranking-analyst.tsx'),
-        route('lecturer/chat-moderate', './pages/lecturer/chat-moderate.tsx'),
-        route('lecturer/notifications-send', './pages/lecturer/notifications-send.tsx'),
-
-        route('lecturer/students-management/list', './pages/lecturer/students-management/list.tsx'),
-        route('lecturer/students-management/:classId/edit/:studentId', './pages/lecturer/students-management/edit.tsx'),
+        // Lecturer routes - My Courses and Class Detail (New Clean Structure)
+        route('lecturer', './pages/lecturer/index.tsx'),  // Redirect to my-courses
+        route('lecturer/my-courses', './pages/lecturer/my-courses.tsx'),
+        route('lecturer/classes/:classId', './pages/lecturer/classes/[classId]/index.tsx'),
 
         // Student routes
         route('student/dashboard', './pages/student/dashboard.tsx'),

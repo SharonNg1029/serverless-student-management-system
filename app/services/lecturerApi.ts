@@ -21,7 +21,28 @@ import type {
   SubjectAssignment,
   ProfileDTO,
   UpdateProfileRequest,
+  // New types for refactored schema
+  AssignmentDTO,
+  CreateAssignmentRequest,
+  UpdateAssignmentRequest,
+  AssignmentSubmissionDTO,
+  GradeSubmissionRequest,
+  PostDTO,
+  CreatePostRequest,
+  UpdatePostRequest,
+  PostCommentDTO,
+  CreateCommentRequest,
+  ClassDetailDTO,
+  AssignmentType,
 } from "../types"
+
+// Weight constants for auto-calculation
+const ASSIGNMENT_WEIGHTS: Record<AssignmentType, number> = {
+  homework: 0.20,
+  project: 0.30,
+  midterm: 0.25,
+  final: 0.25,
+}
 
 // ============================================
 // CLASS MANAGEMENT
@@ -262,6 +283,183 @@ export const lecturerNotificationApi = {
 }
 
 // ============================================
+// ASSIGNMENT MANAGEMENT (New Schema)
+// ============================================
+
+export const lecturerAssignmentApi = {
+  // List assignments for a class
+  getAssignments: async (classId: number, params?: { keyword?: string; type?: string }) => {
+    const response = await api.get<{ results: AssignmentDTO[] }>(`/lecturer/classes/${classId}/assignments`, { params })
+    return response.data
+  },
+
+  // Get assignment by ID
+  getAssignmentById: async (classId: number, assignmentId: number) => {
+    const response = await api.get<AssignmentDTO>(`/lecturer/classes/${classId}/assignments/${assignmentId}`)
+    return response.data
+  },
+
+  // Create assignment
+  createAssignment: async (classId: number, data: CreateAssignmentRequest) => {
+    const formData = new FormData()
+    formData.append("title", data.title)
+    if (data.description) formData.append("description", data.description)
+    formData.append("type", data.type)
+    formData.append("deadline", data.deadline)
+    formData.append("max_score", (data.max_score || 10).toString())
+    formData.append("is_published", (data.is_published ?? false).toString())
+    // Auto-calculate weight based on type
+    const weight = ASSIGNMENT_WEIGHTS[data.type]
+    formData.append("weight", weight.toString())
+    
+    // Attach files
+    if (data.files && data.files.length > 0) {
+      data.files.forEach((file) => {
+        formData.append("files", file)
+      })
+    }
+
+    const response = await api.post<AssignmentDTO>(`/lecturer/classes/${classId}/assignments`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    return response.data
+  },
+
+  // Update assignment
+  updateAssignment: async (classId: number, assignmentId: number, data: UpdateAssignmentRequest) => {
+    const response = await api.patch<AssignmentDTO>(`/lecturer/classes/${classId}/assignments/${assignmentId}`, data)
+    return response.data
+  },
+
+  // Delete assignment
+  deleteAssignment: async (classId: number, assignmentId: number) => {
+    const response = await api.delete<{ message: string }>(`/lecturer/classes/${classId}/assignments/${assignmentId}`)
+    return response.data
+  },
+
+  // Publish/unpublish assignment
+  togglePublish: async (classId: number, assignmentId: number, is_published: boolean) => {
+    const response = await api.patch<AssignmentDTO>(`/lecturer/classes/${classId}/assignments/${assignmentId}`, {
+      is_published,
+    })
+    return response.data
+  },
+
+  // Get submissions for an assignment
+  getSubmissions: async (classId: number, assignmentId: number) => {
+    const response = await api.get<{ results: AssignmentSubmissionDTO[] }>(
+      `/lecturer/classes/${classId}/assignments/${assignmentId}/submissions`
+    )
+    return response.data
+  },
+
+  // Grade a submission
+  gradeSubmission: async (classId: number, assignmentId: number, submissionId: number, data: GradeSubmissionRequest) => {
+    const response = await api.patch<AssignmentSubmissionDTO>(
+      `/lecturer/classes/${classId}/assignments/${assignmentId}/submissions/${submissionId}/grade`,
+      data
+    )
+    return response.data
+  },
+}
+
+// ============================================
+// POST MANAGEMENT (Discussion Posts)
+// ============================================
+
+export const lecturerPostApi = {
+  // List posts for a class
+  getPosts: async (classId: number, params?: { keyword?: string }) => {
+    const response = await api.get<{ results: PostDTO[] }>(`/lecturer/classes/${classId}/posts`, { params })
+    return response.data
+  },
+
+  // Get post by ID
+  getPostById: async (classId: number, postId: number) => {
+    const response = await api.get<PostDTO>(`/lecturer/classes/${classId}/posts/${postId}`)
+    return response.data
+  },
+
+  // Create post
+  createPost: async (classId: number, data: CreatePostRequest) => {
+    const formData = new FormData()
+    formData.append("title", data.title)
+    formData.append("content", data.content)
+    formData.append("is_pinned", (data.is_pinned ?? false).toString())
+    
+    if (data.attachment) {
+      formData.append("attachment", data.attachment)
+    }
+
+    const response = await api.post<PostDTO>(`/lecturer/classes/${classId}/posts`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    return response.data
+  },
+
+  // Update post
+  updatePost: async (classId: number, postId: number, data: UpdatePostRequest) => {
+    const response = await api.patch<PostDTO>(`/lecturer/classes/${classId}/posts/${postId}`, data)
+    return response.data
+  },
+
+  // Delete post
+  deletePost: async (classId: number, postId: number) => {
+    const response = await api.delete<{ message: string }>(`/lecturer/classes/${classId}/posts/${postId}`)
+    return response.data
+  },
+
+  // Toggle pin status
+  togglePin: async (classId: number, postId: number, is_pinned: boolean) => {
+    const response = await api.patch<PostDTO>(`/lecturer/classes/${classId}/posts/${postId}`, { is_pinned })
+    return response.data
+  },
+
+  // Like/unlike post
+  toggleLike: async (classId: number, postId: number) => {
+    const response = await api.post<{ message: string; like_count: number }>(
+      `/lecturer/classes/${classId}/posts/${postId}/like`
+    )
+    return response.data
+  },
+
+  // Get comments for a post
+  getComments: async (classId: number, postId: number) => {
+    const response = await api.get<{ results: PostCommentDTO[] }>(
+      `/lecturer/classes/${classId}/posts/${postId}/comments`
+    )
+    return response.data
+  },
+
+  // Create comment
+  createComment: async (classId: number, postId: number, data: CreateCommentRequest) => {
+    const formData = new FormData()
+    formData.append("content", data.content)
+    if (data.parent_id) {
+      formData.append("parent_id", data.parent_id.toString())
+    }
+    if (data.attachment) {
+      formData.append("attachment", data.attachment)
+    }
+
+    const response = await api.post<PostCommentDTO>(
+      `/lecturer/classes/${classId}/posts/${postId}/comments`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    )
+    return response.data
+  },
+
+  // Delete comment
+  deleteComment: async (classId: number, postId: number, commentId: number) => {
+    const response = await api.delete<{ message: string }>(
+      `/lecturer/classes/${classId}/posts/${postId}/comments/${commentId}`
+    )
+    return response.data
+  },
+}
+
+// ============================================
 // PROFILE
 // ============================================
 
@@ -303,4 +501,6 @@ export default {
   ranking: lecturerRankingApi,
   notifications: lecturerNotificationApi,
   profile: profileApi,
+  assignments: lecturerAssignmentApi,
+  posts: lecturerPostApi,
 }

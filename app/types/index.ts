@@ -388,3 +388,176 @@ export interface LecturerClass {}
 export interface ClassStudent {}
 export interface NotificationHistory {}
 export interface NotificationRequest {}
+
+// ============================================
+// NEW SCHEMA TYPES (Refactored)
+// ============================================
+
+// Assignment Types (replaces old materials and grade_columns)
+export type AssignmentType = 'homework' | 'project' | 'midterm' | 'final'
+
+export interface AssignmentDTO {
+  id: number
+  class_id: number
+  title: string
+  description: string
+  type: AssignmentType
+  weight: number // decimal: homework=0.20, project=0.30, midterm=0.25, final=0.25
+  deadline: string // datetime
+  max_score: number // default 10.00
+  is_published: boolean
+  submission_count?: number // computed from assignment_submissions
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateAssignmentRequest {
+  class_id: number
+  title: string
+  description?: string
+  type: AssignmentType
+  deadline: string
+  max_score?: number // default 10
+  is_published?: boolean
+  files?: File[] // for assignment_materials
+}
+
+export interface UpdateAssignmentRequest {
+  title?: string
+  description?: string
+  type?: AssignmentType
+  deadline?: string
+  max_score?: number
+  is_published?: boolean
+}
+
+// Assignment Materials
+export interface AssignmentMaterialDTO {
+  id: number
+  assignment_id: number
+  file_url: string
+  file_name: string
+  file_type: string
+  uploaded_by: number
+  uploaded_at: string
+}
+
+// Assignment Submissions (Student grades)
+export type SubmissionStatus = 'on_time' | 'late' | 'missing'
+
+export interface AssignmentSubmissionDTO {
+  id: number
+  assignment_id: number
+  student_id: number
+  student_name?: string
+  student_code?: string
+  file_url?: string
+  file_name?: string
+  submitted_at: string
+  score?: number
+  feedback?: string
+  status: SubmissionStatus
+  graded_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface GradeSubmissionRequest {
+  score: number
+  feedback?: string
+}
+
+// Post Types (Discussion posts - only lecturer creates)
+export interface PostDTO {
+  id: number
+  class_id: number
+  lecturer_id: number
+  lecturer_name?: string
+  lecturer_avatar?: string
+  title: string
+  content: string // supports markdown
+  attachment_url?: string
+  attachment_name?: string
+  is_pinned: boolean
+  like_count: number
+  comment_count: number
+  is_liked?: boolean // for current user
+  created_at: string
+  updated_at: string
+}
+
+export interface CreatePostRequest {
+  class_id: number
+  title: string
+  content: string // markdown
+  attachment?: File
+  is_pinned?: boolean
+}
+
+export interface UpdatePostRequest {
+  title?: string
+  content?: string
+  is_pinned?: boolean
+}
+
+// Post Comments (nested comments/replies)
+export interface PostCommentDTO {
+  id: number
+  post_id: number
+  sender_id: number
+  sender_name?: string
+  sender_avatar?: string
+  sender_role?: string
+  parent_id?: number
+  content: string
+  attachment_url?: string
+  like_count: number
+  is_liked?: boolean
+  created_at: string
+  replies?: PostCommentDTO[]
+}
+
+export interface CreateCommentRequest {
+  post_id: number
+  content: string
+  parent_id?: number
+  attachment?: File
+}
+
+// Chat Messages (quick chat in class)
+export interface ChatMessageDTO {
+  id: number
+  class_id: number
+  sender_id: number
+  sender_name?: string
+  sender_avatar?: string
+  sender_role?: string
+  content: string
+  attachment_url?: string
+  created_at: string
+}
+
+export interface CreateChatMessageRequest {
+  class_id: number
+  content: string
+  attachment?: File
+}
+
+// Extended ClassDTO with subject info
+export interface ClassDetailDTO extends ClassDTO {
+  subject?: {
+    id: number
+    codeSubject: string
+    name: string
+    credits: number
+    department?: string
+  }
+}
+
+// Weight constants for auto-calculation
+export const ASSIGNMENT_WEIGHTS: Record<AssignmentType, number> = {
+  homework: 0.20,
+  project: 0.30,
+  midterm: 0.25,
+  final: 0.25,
+}

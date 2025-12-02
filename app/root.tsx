@@ -1,10 +1,22 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router'
 import { useEffect } from 'react'
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { configureAmplify } from './config/amplify-config'
 import { useAuthStore } from './store/authStore'
 import { Toaster } from './components/ui/toaster'
 import './style/layout.css'
+
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+})
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -44,12 +56,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <ChakraProvider value={defaultSystem}>
-          <Toaster />
-          {children}
-          <ScrollRestoration />
-          <Scripts />
-        </ChakraProvider>
+        <QueryClientProvider client={queryClient}>
+          <ChakraProvider value={defaultSystem}>
+            <Toaster />
+            {children}
+            <ScrollRestoration />
+            <Scripts />
+          </ChakraProvider>
+        </QueryClientProvider>
       </body>
     </html>
   )

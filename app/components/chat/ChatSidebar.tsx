@@ -1,4 +1,20 @@
 import { useState } from 'react'
+import {
+  Drawer,
+  Portal,
+  Button,
+  Input,
+  Stack,
+  Text,
+  Box,
+  Flex,
+  IconButton,
+  HStack,
+  VStack,
+  Heading,
+  Spinner
+} from '@chakra-ui/react'
+import { Send, X, MessageCircle } from 'lucide-react'
 
 interface Message {
   id: string
@@ -35,49 +51,112 @@ export default function ChatSidebar({ isOpen, onClose, classId }: ChatSidebarPro
     }
   }
 
-  if (!isOpen) return null
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
 
   return (
-    <div className="chat-sidebar-overlay">
-      <div className="chat-sidebar">
-        <div className="chat-header">
-          <h3>Chat</h3>
-          <button onClick={onClose} className="btn-close">×</button>
-        </div>
+    <Drawer.Root
+      open={isOpen}
+      onOpenChange={(e) => !e.open && onClose()}
+      placement={{ base: 'bottom', md: 'end' }}
+      size={{ base: 'full', md: 'md' }}
+    >
+      <Portal>
+        <Drawer.Backdrop />
+        <Drawer.Positioner>
+          <Drawer.Content>
+            <Drawer.Header borderBottomWidth="1px" bg="orange.50">
+              <HStack gap={2}>
+                <Box bg="orange.500" p={2} rounded="lg" color="white">
+                  <MessageCircle size={20} />
+                </Box>
+                <Drawer.Title color="slate.800" fontWeight="bold">
+                  Chat
+                </Drawer.Title>
+              </HStack>
+              <Drawer.CloseTrigger asChild position="absolute" top="3" right="3">
+                <IconButton variant="ghost" size="sm" aria-label="Close chat">
+                  <X size={18} />
+                </IconButton>
+              </Drawer.CloseTrigger>
+            </Drawer.Header>
 
-        <div className="chat-messages">
-          {messages.map((message) => (
-            <div key={message.id} className="chat-message">
-              <div className="message-sender">{message.senderName}</div>
-              <div className="message-content">{message.content}</div>
-              <div className="message-time">
-                {new Date(message.timestamp).toLocaleTimeString('vi-VN')}
-              </div>
-            </div>
-          ))}
-          
-          {messages.length === 0 && (
-            <div className="no-messages">Chưa có tin nhắn nào</div>
-          )}
-        </div>
+            <Drawer.Body p={4} overflowY="auto" flex="1" bg="gray.50">
+              {messages.length === 0 ? (
+                <VStack
+                  align="center"
+                  justify="center"
+                  h="full"
+                  gap={3}
+                  color="gray.400"
+                >
+                  <MessageCircle size={48} />
+                  <Text fontSize="sm" fontWeight="medium">
+                    Chưa có tin nhắn nào
+                  </Text>
+                </VStack>
+              ) : (
+                <VStack gap={3} align="stretch">
+                  {messages.map((message) => (
+                    <Box
+                      key={message.id}
+                      bg="white"
+                      p={3}
+                      rounded="lg"
+                      shadow="sm"
+                      borderWidth="1px"
+                      borderColor="gray.200"
+                    >
+                      <HStack justify="space-between" align="center" mb={1}>
+                        <Text fontSize="sm" fontWeight="bold" color="slate.700">
+                          {message.senderName}
+                        </Text>
+                        <Text fontSize="xs" color="gray.500">
+                          {new Date(message.timestamp).toLocaleTimeString('vi-VN')}
+                        </Text>
+                      </HStack>
+                      <Text fontSize="sm" color="slate.600">
+                        {message.content}
+                      </Text>
+                    </Box>
+                  ))}
+                </VStack>
+              )}
+            </Drawer.Body>
 
-        <div className="chat-input">
-          <input
-            type="text"
-            placeholder="Nhập tin nhắn..."
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-          />
-          <button 
-            onClick={sendMessage}
-            disabled={loading || !newMessage.trim()}
-            className="btn-send"
-          >
-            Gửi
-          </button>
-        </div>
-      </div>
-    </div>
+            <Drawer.Footer borderTopWidth="1px" p={4} bg="white">
+              <HStack gap={2} w="full">
+                <Input
+                  placeholder="Nhập tin nhắn..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  size="md"
+                  flex="1"
+                  borderColor="gray.300"
+                  _focus={{ borderColor: 'orange.500', boxShadow: '0 0 0 1px #dd7323' }}
+                />
+                <Button
+                  onClick={sendMessage}
+                  disabled={loading || !newMessage.trim()}
+                  loading={loading}
+                  bg="#dd7323"
+                  color="white"
+                  _hover={{ bg: '#c2621a' }}
+                  size="md"
+                  px={6}
+                >
+                  <Send size={18} />
+                </Button>
+              </HStack>
+            </Drawer.Footer>
+          </Drawer.Content>
+        </Drawer.Positioner>
+      </Portal>
+    </Drawer.Root>
   )
 }
