@@ -49,6 +49,7 @@ export default [
         route('student/dashboard', './pages/student/dashboard.tsx'),
         route('student/my-courses', './pages/student/my-courses.tsx'),
         route('student/all-courses', './pages/student/all-courses.tsx'),
+        route('student/calendar', './pages/student/calendar.tsx'),
         route('student/ranking', './pages/student/ranking.tsx'),
         route('student/notifications-receive', './pages/student/notifications-receive.tsx')
       ])

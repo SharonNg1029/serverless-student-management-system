@@ -22,7 +22,7 @@ export default function LoginRoute() {
       case 'Admin':
         return '/admin/dashboard';
       case 'Lecturer':
-        return '/lecturer/classes-management/list';
+        return '/lecturer/dashboard';
       case 'Student':
         return '/home';
       default:

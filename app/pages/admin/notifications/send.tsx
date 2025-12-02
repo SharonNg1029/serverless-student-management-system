@@ -5,7 +5,6 @@ const SendNotificationPage: React.FC = () => {
   const [recipientGroup, setRecipientGroup] = useState('all');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [priority, setPriority] = useState('normal');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,35 +93,6 @@ const SendNotificationPage: React.FC = () => {
               />
             </div>
 
-            {/* Priority */}
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Mức độ ưu tiên</label>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="priority" 
-                    value="normal" 
-                    checked={priority === 'normal'} 
-                    onChange={() => setPriority('normal')}
-                    className="accent-[#dd7323]"
-                  />
-                  <span className="text-sm text-slate-600">Bình thường</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="priority" 
-                    value="high" 
-                    checked={priority === 'high'} 
-                    onChange={() => setPriority('high')}
-                    className="accent-red-500"
-                  />
-                  <span className="text-sm text-slate-600">Cao (Gửi kèm Email)</span>
-                </label>
-              </div>
-            </div>
-
             {/* Action Buttons */}
             <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
               <button type="button" className="px-6 py-2.5 text-slate-600 font-medium hover:bg-slate-50 rounded-xl transition-colors">
@@ -169,7 +139,7 @@ const SendNotificationPage: React.FC = () => {
                 Lưu ý
               </h4>
               <p className="text-xs text-blue-600/80 leading-relaxed">
-                Hệ thống sẽ gửi thông báo đẩy (push notification) đến thiết bị di động của người dùng ngay lập tức. Nếu chọn ưu tiên Cao, một bản sao sẽ được gửi qua Email.
+                Hệ thống sẽ gửi thông báo đẩy (push notification) đến thiết bị di động của người dùng ngay lập tức.
               </p>
            </div>
         </div>

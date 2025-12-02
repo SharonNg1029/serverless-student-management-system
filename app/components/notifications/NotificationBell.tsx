@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Bell } from 'lucide-react'
+import { useAuthStore } from '../../store/authStore'
 
 interface Notification {
   id: string
@@ -10,10 +11,19 @@ interface Notification {
   type: 'info' | 'warning' | 'success' | 'error'
 }
 
-export default function NotificationBell() {
+interface NotificationBellProps {
+  variant?: 'light' | 'dark'
+}
+
+export default function NotificationBell({ variant }: NotificationBellProps) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const { user } = useAuthStore()
+
+  // Auto-detect variant based on user role if not specified
+  const effectiveVariant = variant ?? (user?.role === 'Admin' ? 'light' : 'dark')
+  const isDark = effectiveVariant === 'dark'
 
   useEffect(() => {
     fetchNotifications()
@@ -57,9 +67,20 @@ export default function NotificationBell() {
     <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2.5 hover:bg-slate-100 rounded-full cursor-pointer transition-colors group"
+        className={`relative p-2.5 rounded-full cursor-pointer transition-colors group ${
+          isDark 
+            ? 'hover:bg-[rgba(227,130,20,0.1)]' 
+            : 'hover:bg-slate-100'
+        }`}
       >
-        <Bell size={20} className="text-slate-600 group-hover:text-[#dd7323] transition-colors" />
+        <Bell 
+          size={20} 
+          className={`transition-colors ${
+            isDark 
+              ? 'text-white group-hover:text-[#e38214]' 
+              : 'text-slate-600 group-hover:text-[#dd7323]'
+          }`} 
+        />
         {unreadCount > 0 && (
           <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white animate-pulse"></span>
         )}

@@ -561,3 +561,54 @@ export const ASSIGNMENT_WEIGHTS: Record<AssignmentType, number> = {
   midterm: 0.25,
   final: 0.25,
 }
+
+// ============================================
+// CHAT TYPES
+// ============================================
+
+export interface ChatClass {
+  id: number
+  class_name: string
+  subject_name: string
+  unread_count: number
+  last_message?: {
+    content: string
+    sender_name: string
+    created_at: string
+  }
+}
+
+export interface ChatMessage {
+  id: number
+  class_id: number
+  sender_id: string
+  sender_name: string
+  sender_avatar?: string
+  content: string
+  created_at: string
+}
+
+export interface SendMessagePayload {
+  class_id: number
+  content: string
+}
+
+// ============================================
+// STUDENT CALENDAR TYPES
+// ============================================
+
+export type CalendarAssignmentType = 'homework' | 'project' | 'midterm' | 'final'
+
+export interface CalendarAssignment {
+  id: number
+  title: string
+  class_id: number
+  class_name: string
+  subject_name: string
+  type: CalendarAssignmentType
+  weight: number
+  deadline: string // ISO datetime
+  description?: string
+  is_submitted: boolean
+  is_overdue?: boolean
+}
