@@ -1,4 +1,4 @@
-import api from "../utils/axios"
+import api from '../utils/axios'
 import type {
   ClassDTO,
   CreateClassRequest,
@@ -33,15 +33,15 @@ import type {
   PostCommentDTO,
   CreateCommentRequest,
   ClassDetailDTO,
-  AssignmentType,
-} from "../types"
+  AssignmentType
+} from '../types'
 
 // Weight constants for auto-calculation
 const ASSIGNMENT_WEIGHTS: Record<AssignmentType, number> = {
-  homework: 0.20,
-  project: 0.30,
+  homework: 0.2,
+  project: 0.3,
   midterm: 0.25,
-  final: 0.25,
+  final: 0.25
 }
 
 // ============================================
@@ -51,7 +51,7 @@ const ASSIGNMENT_WEIGHTS: Record<AssignmentType, number> = {
 export const lecturerClassApi = {
   // List classes
   getClasses: async (params?: { subject_id?: number; keyword?: string; status?: number }) => {
-    const response = await api.get<{ results: ClassDTO[] }>("/lecturer/classes", { params })
+    const response = await api.get<{ results: ClassDTO[] }>('/lecturer/classes', { params })
     return response.data
   },
 
@@ -63,7 +63,7 @@ export const lecturerClassApi = {
 
   // Create class
   createClass: async (data: CreateClassRequest) => {
-    const response = await api.post<ClassDTO>("/lecturer/classes", data)
+    const response = await api.post<ClassDTO>('/lecturer/classes', data)
     return response.data
   },
 
@@ -81,9 +81,9 @@ export const lecturerClassApi = {
 
   // Get assigned subjects
   getAssignedSubjects: async () => {
-    const response = await api.get<{ results: SubjectAssignment[] }>("/lecturer/subjects")
+    const response = await api.get<{ results: SubjectAssignment[] }>('/lecturer/subjects')
     return response.data
-  },
+  }
 }
 
 // ============================================
@@ -101,7 +101,7 @@ export const lecturerStudentApi = {
   getStudentById: async (studentId: number) => {
     const response = await api.get<StudentDTO>(`/lecturer/students/detail/${studentId}`)
     return response.data
-  },
+  }
 }
 
 // ============================================
@@ -118,13 +118,13 @@ export const lecturerMaterialApi = {
   // Create material/assignment
   createMaterial: async (data: CreateMaterialRequest) => {
     const formData = new FormData()
-    formData.append("class_id", data.class_id.toString())
-    formData.append("title", data.title)
-    if (data.description) formData.append("description", data.description)
-    if (data.file) formData.append("file", data.file)
+    formData.append('class_id', data.class_id.toString())
+    formData.append('title', data.title)
+    if (data.description) formData.append('description', data.description)
+    if (data.file) formData.append('file', data.file)
 
-    const response = await api.post<MaterialDTO>("/lecturer/assignments", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+    const response = await api.post<MaterialDTO>('/lecturer/assignments', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     })
     return response.data
   },
@@ -133,7 +133,7 @@ export const lecturerMaterialApi = {
   deleteMaterial: async (id: number) => {
     const response = await api.delete<{ message: string }>(`/lecturer/assignments/${id}`)
     return response.data
-  },
+  }
 }
 
 // ============================================
@@ -149,7 +149,7 @@ export const lecturerGradeColumnApi = {
 
   // Create grade column
   createGradeColumn: async (data: CreateGradeColumnRequest) => {
-    const response = await api.post<GradeColumnDTO>("/lecturer/grade-columns", data)
+    const response = await api.post<GradeColumnDTO>('/lecturer/grade-columns', data)
     return response.data
   },
 
@@ -163,7 +163,7 @@ export const lecturerGradeColumnApi = {
   deleteGradeColumn: async (id: number) => {
     const response = await api.delete<{ message: string }>(`/lecturer/grade-columns/${id}`)
     return response.data
-  },
+  }
 }
 
 // ============================================
@@ -179,7 +179,7 @@ export const lecturerGradeApi = {
 
   // Create grade
   createGrade: async (data: CreateGradeRequest) => {
-    const response = await api.post<GradeDTO>("/lecturer/grades", data)
+    const response = await api.post<GradeDTO>('/lecturer/grades', data)
     return response.data
   },
 
@@ -191,9 +191,9 @@ export const lecturerGradeApi = {
 
   // Bulk create/update grades
   bulkUpdateGrades: async (grades: CreateGradeRequest[]) => {
-    const response = await api.post<{ results: GradeDTO[] }>("/lecturer/grades/bulk", { grades })
+    const response = await api.post<{ results: GradeDTO[] }>('/lecturer/grades/bulk', { grades })
     return response.data
-  },
+  }
 }
 
 // ============================================
@@ -210,16 +210,16 @@ export const chatApi = {
   // Create message/post
   createMessage: async (data: CreateMessageRequest) => {
     const formData = new FormData()
-    formData.append("class_id", data.class_id.toString())
-    formData.append("type", data.type)
-    if (data.content) formData.append("content", data.content)
+    formData.append('class_id', data.class_id.toString())
+    formData.append('type', data.type)
+    if (data.content) formData.append('content', data.content)
     if (data.parent_id !== undefined && data.parent_id !== null) {
-      formData.append("parent_id", data.parent_id.toString())
+      formData.append('parent_id', data.parent_id.toString())
     }
-    if (data.attachment) formData.append("attachment", data.attachment)
+    if (data.attachment) formData.append('attachment', data.attachment)
 
-    const response = await api.post<MessageDTO>("/chat/messages", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+    const response = await api.post<MessageDTO>('/chat/messages', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     })
     return response.data
   },
@@ -234,10 +234,10 @@ export const chatApi = {
   updateReaction: async (id: number, data: UpdateReactionRequest) => {
     const response = await api.put<{ message: string; updatedReactions: Record<string, string> }>(
       `/chat/messages/${id}/reactions`,
-      data,
+      data
     )
     return response.data
-  },
+  }
 }
 
 // ============================================
@@ -249,7 +249,7 @@ export const lecturerRankingApi = {
   getRanking: async (classId: number) => {
     const response = await api.get<{ results: RankingDTO[] }>(`/lecturer/ranking/${classId}`)
     return response.data
-  },
+  }
 }
 
 // ============================================
@@ -259,19 +259,19 @@ export const lecturerRankingApi = {
 export const lecturerNotificationApi = {
   // Send notification
   sendNotification: async (data: SendNotificationRequest) => {
-    const response = await api.post<{ message: string }>("/lecturer/notifications/email", data)
+    const response = await api.post<{ message: string }>('/lecturer/notifications/email', data)
     return response.data
   },
 
   // Get sent notifications
   getSentNotifications: async () => {
-    const response = await api.get<{ results: NotificationDTO[] }>("/lecturer/notifications/sent")
+    const response = await api.get<{ results: NotificationDTO[] }>('/lecturer/notifications/sent')
     return response.data
   },
 
   // Get received notifications (system notifications)
   getReceivedNotifications: async () => {
-    const response = await api.get<{ results: NotificationDTO[] }>("/notifications/received")
+    const response = await api.get<{ results: NotificationDTO[] }>('/notifications/received')
     return response.data
   },
 
@@ -279,7 +279,7 @@ export const lecturerNotificationApi = {
   markAsRead: async (id: number) => {
     const response = await api.patch<{ message: string }>(`/notifications/${id}/read`)
     return response.data
-  },
+  }
 }
 
 // ============================================
@@ -302,25 +302,25 @@ export const lecturerAssignmentApi = {
   // Create assignment
   createAssignment: async (classId: number, data: CreateAssignmentRequest) => {
     const formData = new FormData()
-    formData.append("title", data.title)
-    if (data.description) formData.append("description", data.description)
-    formData.append("type", data.type)
-    formData.append("deadline", data.deadline)
-    formData.append("max_score", (data.max_score || 10).toString())
-    formData.append("is_published", (data.is_published ?? false).toString())
+    formData.append('title', data.title)
+    if (data.description) formData.append('description', data.description)
+    formData.append('type', data.type)
+    formData.append('deadline', data.deadline)
+    formData.append('max_score', (data.max_score || 10).toString())
+    formData.append('is_published', (data.is_published ?? false).toString())
     // Auto-calculate weight based on type
     const weight = ASSIGNMENT_WEIGHTS[data.type]
-    formData.append("weight", weight.toString())
-    
+    formData.append('weight', weight.toString())
+
     // Attach files
     if (data.files && data.files.length > 0) {
       data.files.forEach((file) => {
-        formData.append("files", file)
+        formData.append('files', file)
       })
     }
 
     const response = await api.post<AssignmentDTO>(`/lecturer/classes/${classId}/assignments`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: { 'Content-Type': 'multipart/form-data' }
     })
     return response.data
   },
@@ -340,7 +340,7 @@ export const lecturerAssignmentApi = {
   // Publish/unpublish assignment
   togglePublish: async (classId: number, assignmentId: number, is_published: boolean) => {
     const response = await api.patch<AssignmentDTO>(`/lecturer/classes/${classId}/assignments/${assignmentId}`, {
-      is_published,
+      is_published
     })
     return response.data
   },
@@ -354,13 +354,18 @@ export const lecturerAssignmentApi = {
   },
 
   // Grade a submission
-  gradeSubmission: async (classId: number, assignmentId: number, submissionId: number, data: GradeSubmissionRequest) => {
+  gradeSubmission: async (
+    classId: number,
+    assignmentId: number,
+    submissionId: number,
+    data: GradeSubmissionRequest
+  ) => {
     const response = await api.patch<AssignmentSubmissionDTO>(
       `/lecturer/classes/${classId}/assignments/${assignmentId}/submissions/${submissionId}/grade`,
       data
     )
     return response.data
-  },
+  }
 }
 
 // ============================================
@@ -383,16 +388,16 @@ export const lecturerPostApi = {
   // Create post
   createPost: async (classId: number, data: CreatePostRequest) => {
     const formData = new FormData()
-    formData.append("title", data.title)
-    formData.append("content", data.content)
-    formData.append("is_pinned", (data.is_pinned ?? false).toString())
-    
+    formData.append('title', data.title)
+    formData.append('content', data.content)
+    formData.append('is_pinned', (data.is_pinned ?? false).toString())
+
     if (data.attachment) {
-      formData.append("attachment", data.attachment)
+      formData.append('attachment', data.attachment)
     }
 
     const response = await api.post<PostDTO>(`/lecturer/classes/${classId}/posts`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: { 'Content-Type': 'multipart/form-data' }
     })
     return response.data
   },
@@ -434,19 +439,17 @@ export const lecturerPostApi = {
   // Create comment
   createComment: async (classId: number, postId: number, data: CreateCommentRequest) => {
     const formData = new FormData()
-    formData.append("content", data.content)
+    formData.append('content', data.content)
     if (data.parent_id) {
-      formData.append("parent_id", data.parent_id.toString())
+      formData.append('parent_id', data.parent_id.toString())
     }
     if (data.attachment) {
-      formData.append("attachment", data.attachment)
+      formData.append('attachment', data.attachment)
     }
 
-    const response = await api.post<PostCommentDTO>(
-      `/lecturer/classes/${classId}/posts/${postId}/comments`,
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    )
+    const response = await api.post<PostCommentDTO>(`/lecturer/classes/${classId}/posts/${postId}/comments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
     return response.data
   },
 
@@ -456,7 +459,7 @@ export const lecturerPostApi = {
       `/lecturer/classes/${classId}/posts/${postId}/comments/${commentId}`
     )
     return response.data
-  },
+  }
 }
 
 // ============================================
@@ -464,31 +467,34 @@ export const lecturerPostApi = {
 // ============================================
 
 export const profileApi = {
-  // Get profile
+  // Get profile - Authorization header được tự động thêm bởi axios interceptor
   getProfile: async () => {
-    const response = await api.get<ProfileDTO>("/profile")
-    return response.data
+    const response = await api.get<{ data: ProfileDTO }>('/api/users/profile')
+    return response.data.data
   },
 
-  // Update profile
-  updateProfile: async (data: UpdateProfileRequest) => {
+  // Update profile - PATCH với multipart/form-data
+  updateProfile: async (data: UpdateProfileRequest & { avatarFile?: File }) => {
     const formData = new FormData()
-    if (data.name) formData.append("name", data.name)
-    if (data.date_of_birth) formData.append("date_of_birth", data.date_of_birth)
-    if (data.phone) formData.append("phone", data.phone)
-    if (data.avatar) formData.append("avatar", data.avatar)
+    if (data.name) formData.append('name', data.name)
+    if (data.dateOfBirth) formData.append('dateOfBirth', data.dateOfBirth)
+    if (data.avatarFile) formData.append('avatarFile', data.avatarFile)
 
-    const response = await api.patch<ProfileDTO>("/profile", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+    const response = await api.patch('/api/users/profile', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    // Handle different response formats
+    return response.data?.data || response.data
+  },
+
+  // Change password - POST /api/auth/change-password
+  changePassword: async (data: { old_password: string; new_password: string; confirm_password: string }) => {
+    const response = await api.post<{ message: string }>('/api/auth/change-password', {
+      oldPassword: data.old_password,
+      newPassword: data.new_password
     })
     return response.data
-  },
-
-  // Change password
-  changePassword: async (data: { old_password: string; new_password: string; confirm_password: string }) => {
-    const response = await api.post<{ message: string }>("/auth/change-password", data)
-    return response.data
-  },
+  }
 }
 
 export default {
@@ -502,5 +508,5 @@ export default {
   notifications: lecturerNotificationApi,
   profile: profileApi,
   assignments: lecturerAssignmentApi,
-  posts: lecturerPostApi,
+  posts: lecturerPostApi
 }

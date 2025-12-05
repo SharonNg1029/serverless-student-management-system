@@ -1,35 +1,73 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { signIn, signOut, fetchAuthSession, getCurrentUser, fetchUserAttributes, confirmSignIn, type ConfirmSignInOutput } from '@aws-amplify/auth';
-import type { User } from '../types';
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import {
+  signIn,
+  signOut,
+  fetchAuthSession,
+  getCurrentUser,
+  fetchUserAttributes,
+  confirmSignIn
+} from '@aws-amplify/auth'
+import type { User } from '../types'
 
+// Helper function để lấy role từ DynamoDB nếu không có trong Cognito
+const fetchUserRoleFromDynamoDB = async (userId: string, accessToken: string): Promise<string | null> => {
+  try {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+    const response = await fetch(`${apiBaseUrl}/profile`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      console.error('Failed to fetch user profile from DynamoDB')
+      return null
+    }
+
+    const data = await response.json()
+    // Map role_id to role name
+    const roleMap: Record<number, string> = {
+      1: 'Admin',
+      2: 'Lecturer',
+      3: 'Student'
+    }
+
+    return roleMap[data.role_id] || null
+  } catch (error) {
+    console.error('Error fetching role from DynamoDB:', error)
+    return null
+  }
+}
 
 interface AuthState {
-  user: User | null;
-  accessToken: string | null;
-  refreshToken: string | null;
-  idToken: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-  pendingSignIn: boolean;
-  
+  user: User | null
+  accessToken: string | null
+  refreshToken: string | null
+  idToken: string | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  error: string | null
+  pendingSignIn: boolean
+
   // Actions
-  loginWithCognito: (email: string, password: string) => Promise<{ requireNewPassword?: boolean }>;
-  loginWithGoogle: (credential: string) => Promise<void>;
-  confirmNewPassword: (newPassword: string) => Promise<void>;
-  logoutFromCognito: () => Promise<void>;
-  refreshSession: () => Promise<string | null>;
-  checkAuthStatus: () => Promise<void>;
-  updateUser: (userData: Partial<User>) => void;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-  clearError: () => void;
+  loginWithCognito: (email: string, password: string) => Promise<{ requireNewPassword?: boolean }>
+  loginWithGoogle: (credential: string) => Promise<void>
+  confirmNewPassword: (newPassword: string) => Promise<void>
+  logoutFromCognito: () => Promise<void>
+  refreshSession: () => Promise<string | null>
+  checkAuthStatus: () => Promise<void>
+  updateUser: (userData: Partial<User>) => void
+  setLoading: (loading: boolean) => void
+  setError: (error: string | null) => void
+  clearError: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // Initial state
       user: null,
       accessToken: null,
@@ -43,98 +81,95 @@ export const useAuthStore = create<AuthState>()(
       // Login with Cognito
       loginWithCognito: async (email: string, password: string) => {
         try {
-          set({ isLoading: true, error: null });
-          
+          set({ isLoading: true, error: null })
+
           // Sign in với Cognito
           const signInResult = await signIn({
             username: email,
-            password: password,
-          });
+            password: password
+          })
 
           // Kiểm tra xem có cần bước bổ sung không
           if (!signInResult.isSignedIn && signInResult.nextStep) {
-            const nextStep = signInResult.nextStep.signInStep;
-            
+            const nextStep = signInResult.nextStep.signInStep
+
             // Xử lý các trường hợp đặc biệt
             switch (nextStep) {
               case 'CONFIRM_SIGN_UP':
-                throw new Error('Tài khoản chưa được xác nhận. Vui lòng kiểm tra email để xác nhận tài khoản.');
+                throw new Error('Tài khoản chưa được xác nhận. Vui lòng kiểm tra email để xác nhận tài khoản.')
               case 'RESET_PASSWORD':
-                throw new Error('Bạn cần reset mật khẩu. Vui lòng sử dụng chức năng quên mật khẩu.');
+                throw new Error('Bạn cần reset mật khẩu. Vui lòng sử dụng chức năng quên mật khẩu.')
               case 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED':
                 // Trả về flag để UI biết cần đổi mật khẩu
-                set({ pendingSignIn: true, isLoading: false });
-                return { requireNewPassword: true };
+                set({ pendingSignIn: true, isLoading: false })
+                return { requireNewPassword: true }
               case 'CONFIRM_SIGN_IN_WITH_SMS_CODE':
               case 'CONFIRM_SIGN_IN_WITH_TOTP_CODE':
-                throw new Error('Tài khoản yêu cầu xác thực 2 lớp (MFA). Chức năng này chưa được hỗ trợ.');
+                throw new Error('Tài khoản yêu cầu xác thực 2 lớp (MFA). Chức năng này chưa được hỗ trợ.')
               case 'CONTINUE_SIGN_IN_WITH_MFA_SELECTION':
-                throw new Error('Vui lòng chọn phương thức xác thực MFA.');
+                throw new Error('Vui lòng chọn phương thức xác thực MFA.')
               case 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE':
-                throw new Error('Tài khoản yêu cầu xác thực đặc biệt.');
+                throw new Error('Tài khoản yêu cầu xác thực đặc biệt.')
               default:
-                throw new Error(`Yêu cầu bước xác thực: ${nextStep}. Vui lòng liên hệ quản trị viên.`);
+                throw new Error(`Yêu cầu bước xác thực: ${nextStep}. Vui lòng liên hệ quản trị viên.`)
             }
           }
 
           if (signInResult.isSignedIn) {
             // Đợi một chút để đảm bảo session được tạo
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
+            await new Promise((resolve) => setTimeout(resolve, 100))
+
             // Lấy tokens từ session
-            const session = await fetchAuthSession({ forceRefresh: true });
-            const tokens = session.tokens;
-            
+            const session = await fetchAuthSession({ forceRefresh: true })
+            const tokens = session.tokens
+
             if (!tokens || !tokens.accessToken) {
-              throw new Error('Không nhận được token từ Cognito. Vui lòng thử lại.');
+              throw new Error('Không nhận được token từ Cognito. Vui lòng thử lại.')
             }
 
             // Lấy thông tin user
-            const currentUser = await getCurrentUser();
-            const userAttributes = await fetchUserAttributes();
+            const currentUser = await getCurrentUser()
+            const userAttributes = await fetchUserAttributes()
 
             // Debug: Log để kiểm tra
-            console.log('=== DEBUG LOGIN ===');
-            console.log('User Attributes:', JSON.stringify(userAttributes, null, 2));
-            console.log('ID Token Payload:', JSON.stringify(tokens.idToken?.payload, null, 2));
-            console.log('All ID Token:', tokens.idToken);
-            
+            console.log('=== DEBUG LOGIN ===')
+            console.log('User Attributes:', JSON.stringify(userAttributes, null, 2))
+            console.log('ID Token Payload:', JSON.stringify(tokens.idToken?.payload, null, 2))
+            console.log('All ID Token:', tokens.idToken)
+
             // Lấy role từ nhiều nguồn có thể:
             // 1. ID Token payload (custom:role)
             // 2. User attributes (custom:role hoặc custom:Role)
             // 3. User attributes (role)
-            const idTokenRole = tokens.idToken?.payload['custom:role'];
-            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role;
-            let finalRole = idTokenRole || attrRole;
-            
-            console.log('ID Token Role:', idTokenRole);
-            console.log('Attributes Role:', attrRole);
-            console.log('Final Role:', finalRole);
-            
+            const idTokenRole = tokens.idToken?.payload['custom:role']
+            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role
+            let finalRole = idTokenRole || attrRole
+
+            console.log('ID Token Role:', idTokenRole)
+            console.log('Attributes Role:', attrRole)
+            console.log('Final Role:', finalRole)
+
             // If no role found in Cognito, try to fetch from DynamoDB
             if (!finalRole) {
-              console.log('⚠️ No role in Cognito, fetching from DynamoDB...');
+              console.log('⚠️ No role in Cognito, fetching from DynamoDB...')
               try {
-                const dynamoRole = await fetchUserRoleFromDynamoDB(
-                  currentUser.userId,
-                  tokens.accessToken.toString()
-                );
+                const dynamoRole = await fetchUserRoleFromDynamoDB(currentUser.userId, tokens.accessToken.toString())
                 if (dynamoRole) {
-                  finalRole = dynamoRole;
-                  console.log('✅ Role from DynamoDB:', dynamoRole);
+                  finalRole = dynamoRole
+                  console.log('✅ Role from DynamoDB:', dynamoRole)
                 } else {
-                  console.log('⚠️ No role in DynamoDB either, using default');
+                  console.log('⚠️ No role in DynamoDB either, using default')
                 }
               } catch (error) {
-                console.error('Failed to fetch role from DynamoDB:', error);
+                console.error('Failed to fetch role from DynamoDB:', error)
               }
             }
-            
-            console.log('Final Role will be:', finalRole || 'Student (DEFAULT)');
-            
-            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student';
-            console.log('=== END DEBUG ===');
-            
+
+            console.log('Final Role will be:', finalRole || 'Student (DEFAULT)')
+
+            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student'
+            console.log('=== END DEBUG ===')
+
             const userData: User = {
               id: currentUser.userId,
               username: currentUser.username,
@@ -148,8 +183,9 @@ export const useAuthStore = create<AuthState>()(
               lastLogin: new Date().toISOString(),
               loginMethod: 'cognito',
               createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
+              updatedAt: new Date().toISOString()
+            }
+            console.log(userData)
 
             // Store tokens và user info
             set({
@@ -159,66 +195,65 @@ export const useAuthStore = create<AuthState>()(
               idToken: tokens.idToken?.toString() || null,
               isAuthenticated: true,
               isLoading: false,
-              error: null,
-            });
+              error: null
+            })
 
-            return {};
+            return {}
           } else {
-            throw new Error('Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập.');
+            throw new Error('Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập.')
           }
         } catch (error: any) {
-          const errorMessage = error.message || 'Đăng nhập thất bại';
+          const errorMessage = error.message || 'Đăng nhập thất bại'
           set({
             error: errorMessage,
             isLoading: false,
             isAuthenticated: false,
-            pendingSignIn: false,
-          });
-          throw error;
+            pendingSignIn: false
+          })
+          throw error
         }
       },
 
       // Confirm new password when required
       confirmNewPassword: async (newPassword: string) => {
         try {
-          set({ isLoading: true, error: null });
-          
+          set({ isLoading: true, error: null })
+
           // Confirm sign in với mật khẩu mới
           const confirmResult = await confirmSignIn({
-            challengeResponse: newPassword,
-          });
-          
+            challengeResponse: newPassword
+          })
+
           if (confirmResult.isSignedIn) {
-            
             // Đợi một chút để đảm bảo session được tạo
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
+            await new Promise((resolve) => setTimeout(resolve, 100))
+
             // Lấy tokens từ session
-            const session = await fetchAuthSession({ forceRefresh: true });
-            const tokens = session.tokens;
-            
+            const session = await fetchAuthSession({ forceRefresh: true })
+            const tokens = session.tokens
+
             if (!tokens || !tokens.accessToken) {
-              throw new Error('Không nhận được token sau khi đổi mật khẩu.');
+              throw new Error('Không nhận được token sau khi đổi mật khẩu.')
             }
-            
+
             // Lấy thông tin user
-            const currentUser = await getCurrentUser();
-            const userAttributes = await fetchUserAttributes();
-            
+            const currentUser = await getCurrentUser()
+            const userAttributes = await fetchUserAttributes()
+
             // Debug: Log
-            console.log('=== DEBUG CONFIRM PASSWORD ===');
-            console.log('User Attributes:', userAttributes);
-            console.log('ID Token Payload:', tokens.idToken?.payload);
-            
+            console.log('=== DEBUG CONFIRM PASSWORD ===')
+            console.log('User Attributes:', userAttributes)
+            console.log('ID Token Payload:', tokens.idToken?.payload)
+
             // Lấy role từ ID Token hoặc attributes
-            const idTokenRole = tokens.idToken?.payload['custom:role'];
-            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role;
-            const finalRole = idTokenRole || attrRole;
-            
-            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student';
-            console.log('Final Role:', roleValue);
-            console.log('=== END DEBUG ===');
-            
+            const idTokenRole = tokens.idToken?.payload['custom:role']
+            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role
+            const finalRole = idTokenRole || attrRole
+
+            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student'
+            console.log('Final Role:', roleValue)
+            console.log('=== END DEBUG ===')
+
             const userData: User = {
               id: currentUser.userId,
               username: currentUser.username,
@@ -232,9 +267,9 @@ export const useAuthStore = create<AuthState>()(
               lastLogin: new Date().toISOString(),
               loginMethod: 'cognito',
               createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-            
+              updatedAt: new Date().toISOString()
+            }
+
             set({
               user: userData,
               accessToken: tokens.accessToken.toString(),
@@ -243,62 +278,60 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               isLoading: false,
               error: null,
-              pendingSignIn: false,
-            });
+              pendingSignIn: false
+            })
           } else {
-            throw new Error('Xác nhận mật khẩu thất bại.');
+            throw new Error('Xác nhận mật khẩu thất bại.')
           }
         } catch (error: any) {
-          const errorMessage = error.message || 'Đổi mật khẩu thất bại';
+          const errorMessage = error.message || 'Đổi mật khẩu thất bại'
           set({
             error: errorMessage,
-            isLoading: false,
-          });
-          throw error;
+            isLoading: false
+          })
+          throw error
         }
       },
 
       // Login with Google
       loginWithGoogle: async (credential: string) => {
         try {
-          set({ isLoading: true, error: null });
-          
+          set({ isLoading: true, error: null })
+
           // Decode JWT token từ Google để lấy email
-          const payload = JSON.parse(atob(credential.split('.')[1]));
-          const googleEmail = payload.email;
-          
-          console.log('Google Login - Email:', googleEmail);
-          
+          const payload = JSON.parse(atob(credential.split('.')[1]))
+          const googleEmail = payload.email
+
+          console.log('Google Login - Email:', googleEmail)
+
           // Gọi API backend để xác thực Google token và lấy thông tin user
-          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-          
+          const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+
           const response = await fetch(`${apiBaseUrl}/auth/google`, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({
               credential: credential,
-              email: googleEmail,
-            }),
-          });
-          
+              email: googleEmail
+            })
+          })
+
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
+            const errorData = await response.json().catch(() => ({}))
             throw new Error(
-              errorData.message || 
-              errorData.error || 
-              'Đăng nhập thất bại. Email này chưa được đăng ký trong hệ thống.'
-            );
+              errorData.message || errorData.error || 'Đăng nhập thất bại. Email này chưa được đăng ký trong hệ thống.'
+            )
           }
-          
-          const data = await response.json();
-          
+
+          const data = await response.json()
+
           // Kiểm tra response data
           if (!data.user) {
-            throw new Error('Không tìm thấy thông tin người dùng');
+            throw new Error('Không tìm thấy thông tin người dùng')
           }
-          
+
           // Map response data to User object
           const userData: User = {
             id: data.user.id || data.user.userId || payload.sub,
@@ -313,11 +346,11 @@ export const useAuthStore = create<AuthState>()(
             lastLogin: new Date().toISOString(),
             loginMethod: 'google',
             createdAt: data.user.createdAt || new Date().toISOString(),
-            updatedAt: data.user.updatedAt || new Date().toISOString(),
-          };
-          
-          console.log('Google Login Success - User:', userData);
-          
+            updatedAt: data.user.updatedAt || new Date().toISOString()
+          }
+
+          console.log('Google Login Success - User:', userData)
+
           // Lưu vào store
           set({
             user: userData,
@@ -327,28 +360,28 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             isLoading: false,
             error: null,
-            pendingSignIn: false,
-          });
+            pendingSignIn: false
+          })
         } catch (error: any) {
-          console.error('Google Login Error:', error);
-          const errorMessage = error.message || 'Đăng nhập Google thất bại';
+          console.error('Google Login Error:', error)
+          const errorMessage = error.message || 'Đăng nhập Google thất bại'
           set({
             error: errorMessage,
             isLoading: false,
-            isAuthenticated: false,
-          });
-          throw error;
+            isAuthenticated: false
+          })
+          throw error
         }
       },
 
       // Logout from Cognito
       logoutFromCognito: async () => {
         try {
-          set({ isLoading: true });
-          
+          set({ isLoading: true })
+
           // Sign out từ Cognito
-          await signOut();
-          
+          await signOut()
+
           set({
             user: null,
             accessToken: null,
@@ -357,65 +390,65 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             isLoading: false,
             error: null,
-            pendingSignIn: false,
-          });
+            pendingSignIn: false
+          })
         } catch (error: any) {
-          set({ isLoading: false, error: error.message });
-          throw error;
+          set({ isLoading: false, error: error.message })
+          throw error
         }
       },
 
       // Refresh session và lấy token mới
       refreshSession: async () => {
         try {
-          const session = await fetchAuthSession({ forceRefresh: true });
-          const tokens = session.tokens;
-          
+          const session = await fetchAuthSession({ forceRefresh: true })
+          const tokens = session.tokens
+
           if (tokens?.accessToken) {
-            const accessToken = tokens.accessToken.toString();
-            
+            const accessToken = tokens.accessToken.toString()
+
             set({
               accessToken,
               refreshToken: null, // AWS Amplify v6 manages refresh token internally
-              idToken: tokens.idToken?.toString() || null,
-            });
-            
-            return accessToken;
+              idToken: tokens.idToken?.toString() || null
+            })
+
+            return accessToken
           }
-          
-          return null;
+
+          return null
         } catch (error) {
-          console.error('Refresh session error:', error);
-          return null;
+          console.error('Refresh session error:', error)
+          return null
         }
       },
 
       // Check auth status khi app khởi động
       checkAuthStatus: async () => {
         try {
-          set({ isLoading: true });
-          
-          const currentUser = await getCurrentUser();
-          const session = await fetchAuthSession();
-          const tokens = session.tokens;
-          
+          set({ isLoading: true })
+
+          const currentUser = await getCurrentUser()
+          const session = await fetchAuthSession()
+          const tokens = session.tokens
+
           if (currentUser && tokens?.accessToken) {
-            const userAttributes = await fetchUserAttributes();
-            
+            const userAttributes = await fetchUserAttributes()
+
             // Debug: Log
-            console.log('=== DEBUG CHECK AUTH ===');
-            console.log('User Attributes:', userAttributes);
-            console.log('ID Token Payload:', tokens.idToken?.payload);
-            
+            console.log('=== DEBUG CHECK AUTH ===')
+            console.log('User Attributes:', userAttributes)
+            console.log('ID Token Payload:', tokens.idToken?.payload)
+
             // Lấy role từ ID Token hoặc attributes
-            const idTokenRole = tokens.idToken?.payload['custom:role'];
-            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role;
-            const finalRole = idTokenRole || attrRole;
-            
-            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student';
-            console.log('Final Role:', roleValue);
-            console.log('=== END DEBUG ===');
-            
+            const idTokenRole = tokens.idToken?.payload['custom:role']
+            const attrRole = userAttributes['custom:role'] || userAttributes['custom:Role'] || userAttributes.role
+            const finalRole = idTokenRole || attrRole
+
+            const roleValue = (finalRole as 'Student' | 'Lecturer' | 'Admin') || 'Student'
+            console.log('Final Role:', roleValue)
+            console.log('=== END DEBUG ===')
+
             const userData: User = {
               id: currentUser.userId,
               username: currentUser.username,
@@ -429,44 +462,41 @@ export const useAuthStore = create<AuthState>()(
               lastLogin: new Date().toISOString(),
               loginMethod: 'cognito',
               createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
+              updatedAt: new Date().toISOString()
+            }
 
             set({
               user: userData,
               accessToken: tokens.accessToken.toString(),
               refreshToken: null, // AWS Amplify v6 manages refresh token internally
               idToken: tokens.idToken?.toString() || null,
-              isAuthenticated: true,
-            });
+              isAuthenticated: true
+            })
           } else {
-            set({ isAuthenticated: false });
+            set({ isAuthenticated: false })
           }
         } catch (error) {
-          console.log('Not authenticated');
-          set({ isAuthenticated: false });
+          console.log('Not authenticated')
+          set({ isAuthenticated: false })
         } finally {
-          set({ isLoading: false });
+          set({ isLoading: false })
         }
       },
 
       // Update user action
       updateUser: (userData: Partial<User>) =>
         set((state) => ({
-          user: state.user ? { ...state.user, ...userData } : null,
+          user: state.user ? { ...state.user, ...userData } : null
         })),
 
       // Set loading state
-      setLoading: (loading: boolean) =>
-        set({ isLoading: loading }),
+      setLoading: (loading: boolean) => set({ isLoading: loading }),
 
       // Set error
-      setError: (error: string | null) =>
-        set({ error }),
+      setError: (error: string | null) => set({ error }),
 
       // Clear error
-      clearError: () =>
-        set({ error: null }),
+      clearError: () => set({ error: null })
     }),
     {
       name: 'auth-storage',
@@ -475,8 +505,8 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         idToken: state.idToken,
-        isAuthenticated: state.isAuthenticated,
-      }),
+        isAuthenticated: state.isAuthenticated
+      })
     }
   )
-);
+)
