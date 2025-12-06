@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Search, Plus, Download, MoreVertical, ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Search, Plus, Download, MoreVertical, ChevronLeft, ChevronRight, Edit, Ban } from 'lucide-react'
 
 export interface Column<T> {
   header: string
@@ -18,6 +18,7 @@ interface TableListProps<T> {
   onSearch?: (term: string) => void
   onEdit?: (item: T) => void
   onDelete?: (item: T) => void
+  deleteLabel?: string
   isLoading?: boolean
 }
 
@@ -31,9 +32,22 @@ function TableList<T extends { id: string | number }>({
   onSearch,
   onEdit,
   onDelete,
+  deleteLabel = 'Xóa',
   isLoading
 }: TableListProps<T>) {
   const [openMenuId, setOpenMenuId] = useState<string | number | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const toggleMenu = (id: string | number) => {
     setOpenMenuId(openMenuId === id ? null : id)
@@ -146,23 +160,27 @@ function TableList<T extends { id: string | number }>({
 
                       {/* Dropdown Menu */}
                       {openMenuId === row.id && (
-                        <div className='absolute right-6 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 min-w-[140px] py-1'>
+                        <div
+                          ref={menuRef}
+                          className='absolute right-6 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 min-w-[160px] py-2 animate-in fade-in slide-in-from-top-2 duration-200'
+                        >
                           {onEdit && (
                             <button
                               onClick={() => handleEdit(row)}
-                              className='w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2'
+                              className='w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors'
                             >
-                              <Edit size={14} />
-                              Cập nhật
+                              <Edit size={16} className='text-slate-500' />
+                              <span className='font-medium'>Cập nhật</span>
                             </button>
                           )}
+                          {onEdit && onDelete && <div className='my-1 border-t border-slate-100' />}
                           {onDelete && (
                             <button
                               onClick={() => handleDelete(row)}
-                              className='w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2'
+                              className='w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors'
                             >
-                              <Trash2 size={14} />
-                              Xóa
+                              <Ban size={16} />
+                              <span className='font-medium'>{deleteLabel}</span>
                             </button>
                           )}
                         </div>

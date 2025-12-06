@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import TableList, { type Column } from '../../../components/common/TableList'
-import { Book, Search, X, Loader2 } from 'lucide-react'
+import { Book, Search, X, Loader2, CheckCircle, BookOpen } from 'lucide-react'
 import type { Subject } from '../../../types'
 import api from '../../../utils/axios'
 import { toaster } from '../../../components/ui/toaster'
@@ -217,13 +217,16 @@ const SubjectsList: React.FC = () => {
     {
       header: 'Trạng thái',
       accessor: 'status',
-      render: (row) => (
-        <span
-          className={`px-2 py-1 rounded text-xs font-medium ${row.status === 1 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}
-        >
-          {row.status === 1 ? 'Đang mở' : 'Đóng'}
-        </span>
-      )
+      render: (row) =>
+        row.status === 1 ? (
+          <span className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-emerald-600 bg-emerald-50'>
+            <BookOpen size={12} /> Đang giảng dạy
+          </span>
+        ) : (
+          <span className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-slate-500 bg-slate-100'>
+            <CheckCircle size={12} /> Ngừng giảng dạy
+          </span>
+        )
     }
   ]
 
@@ -242,8 +245,8 @@ const SubjectsList: React.FC = () => {
               type='text'
               placeholder='Nhập mã HP hoặc tên môn học...'
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              className='w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent'
+              onChange={(e) => setKeyword(e.target.value.toUpperCase())}
+              className='w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#dd7323] focus:border-transparent uppercase'
             />
           </div>
 
@@ -309,6 +312,7 @@ const SubjectsList: React.FC = () => {
           onAdd={() => navigate('/admin/subjects-management/create')}
           onEdit={handleEditSubject}
           onDelete={handleDeleteSubject}
+          deleteLabel='Ngừng giảng dạy'
         />
       )}
     </div>
